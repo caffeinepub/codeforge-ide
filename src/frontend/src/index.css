@@ -1,0 +1,262 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================
+   CodeForge IDE - VS Code-inspired design system
+   ============================================= */
+
+/* Dark Theme (default) */
+[data-ide-theme="dark"],
+:root {
+  --bg-editor: #1e1e1e;
+  --bg-sidebar: #252526;
+  --bg-activity: #333333;
+  --bg-tab-bar: #252526;
+  --bg-tab-active: #1e1e1e;
+  --bg-tab-inactive: #2d2d2d;
+  --bg-panel: #1e1e1e;
+  --bg-status-bar: #007acc;
+  --bg-input: #3c3c3c;
+  --border: #3a3a3a;
+  --text-primary: #d4d4d4;
+  --text-secondary: #9d9d9d;
+  --text-muted: #6b6b6b;
+  --accent: #007acc;
+  --accent-hover: #1a8cd8;
+  --selection: #264f78;
+  --hover-item: #2a2d2e;
+  --active-item: #37373d;
+  --icon-inactive: #858585;
+  --icon-active: #ffffff;
+  --error: #f44747;
+  --warning: #cca700;
+  --info: #75beff;
+}
+
+/* Light Theme */
+[data-ide-theme="light"] {
+  --bg-editor: #ffffff;
+  --bg-sidebar: #f3f3f3;
+  --bg-activity: #2c2c2c;
+  --bg-tab-bar: #ececec;
+  --bg-tab-active: #ffffff;
+  --bg-tab-inactive: #ececec;
+  --bg-panel: #f3f3f3;
+  --bg-status-bar: #007acc;
+  --bg-input: #ffffff;
+  --border: #e0e0e0;
+  --text-primary: #333333;
+  --text-secondary: #6f6f6f;
+  --text-muted: #999999;
+  --accent: #005fb8;
+  --accent-hover: #0066cc;
+  --selection: #add6ff;
+  --hover-item: #e8e8e8;
+  --active-item: #e4e6f1;
+  --icon-inactive: #6f6f6f;
+  --icon-active: #ffffff;
+  --error: #e51400;
+  --warning: #bf8803;
+  --info: #1a85ff;
+}
+
+/* High Contrast Dark Theme */
+[data-ide-theme="high-contrast"] {
+  --bg-editor: #000000;
+  --bg-sidebar: #000000;
+  --bg-activity: #000000;
+  --bg-tab-bar: #000000;
+  --bg-tab-active: #000000;
+  --bg-tab-inactive: #000000;
+  --bg-panel: #000000;
+  --bg-status-bar: #000000;
+  --bg-input: #000000;
+  --border: #6fc3df;
+  --text-primary: #ffffff;
+  --text-secondary: #ffffff;
+  --text-muted: #cccccc;
+  --accent: #6fc3df;
+  --accent-hover: #9ee0f8;
+  --selection: #00457a;
+  --hover-item: #1a1a1a;
+  --active-item: #333333;
+  --icon-inactive: #ffffff;
+  --icon-active: #6fc3df;
+  --error: #f48771;
+  --warning: #cca700;
+  --info: #6fc3df;
+}
+
+/* ======================
+   Base Reset
+   ====================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--bg-editor);
+  color: var(--text-primary);
+}
+
+/* ======================
+   Custom Scrollbars
+   ====================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Hide scrollbar for tab bar */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ======================
+   Monaco Editor Container
+   ====================== */
+
+.monaco-editor-container {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.monaco-editor .overflow-guard {
+  border-radius: 0;
+}
+
+/* ======================
+   Panel Resize Cursor Lock
+   ====================== */
+
+body.resizing-h {
+  cursor: ew-resize !important;
+  user-select: none !important;
+}
+
+body.resizing-v {
+  cursor: ns-resize !important;
+  user-select: none !important;
+}
+
+/* ======================
+   Utility Overrides
+   ====================== */
+
+/* Prevent text selection during drag operations */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Tab active top border override */
+.tab-active-indicator {
+  box-shadow: inset 0 2px 0 0 var(--accent);
+}
+
+/* Remove default focus outline and use custom */
+[data-ide-theme] button:focus-visible,
+[data-ide-theme] input:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* ======================
+   Tooltip Overrides for IDE dark theme
+   ====================== */
+
+.ide-tooltip {
+  background: #1e1e1e;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+
+@layer base {
+  :root {
+    --radius: 0.25rem;
+    --background: 0.118 0 0;
+    --foreground: 0.83 0 0;
+    --card: 0.145 0 0;
+    --card-foreground: 0.83 0 0;
+    --popover: 0.145 0 0;
+    --popover-foreground: 0.83 0 0;
+    --primary: 0.547 0.137 231;
+    --primary-foreground: 0.985 0 0;
+    --secondary: 0.2 0 0;
+    --secondary-foreground: 0.83 0 0;
+    --muted: 0.2 0 0;
+    --muted-foreground: 0.62 0 0;
+    --accent: 0.547 0.137 231;
+    --accent-foreground: 0.985 0 0;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --border: 0.23 0 0;
+    --input: 0.23 0 0;
+    --ring: 0.547 0.137 231;
+    --chart-1: 0.646 0.222 41.116;
+    --chart-2: 0.6 0.118 184.704;
+    --chart-3: 0.398 0.07 227.392;
+    --chart-4: 0.828 0.189 84.429;
+    --chart-5: 0.769 0.188 70.08;
+    --sidebar: 0.145 0 0;
+    --sidebar-foreground: 0.83 0 0;
+    --sidebar-primary: 0.547 0.137 231;
+    --sidebar-primary-foreground: 0.985 0 0;
+    --sidebar-accent: 0.2 0 0;
+    --sidebar-accent-foreground: 0.83 0 0;
+    --sidebar-border: 0.23 0 0;
+    --sidebar-ring: 0.547 0.137 231;
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
