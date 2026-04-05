@@ -8,6 +8,7 @@ interface BottomPanelProps {
   height: number;
   onHeightChange: (h: number) => void;
   onToggle: () => void;
+  isMobile?: boolean;
 }
 
 const MOCK_PROBLEMS = [
@@ -103,34 +104,50 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   height,
   onHeightChange,
   onToggle,
+  isMobile = false,
 }) => {
   const [activeTab, setActiveTab] = useState<PanelTab>("problems");
   const isResizing = useRef(false);
   const startY = useRef(0);
   const startH = useRef(0);
 
-  const handleResizeStart = (e: React.MouseEvent) => {
-    isResizing.current = true;
-    startY.current = e.clientY;
-    startH.current = height;
-    e.preventDefault();
+  const effectiveHeight = isMobile
+    ? Math.min(Math.max(height, 160), window.innerHeight * 0.5)
+    : height;
 
-    const onMove = (ev: MouseEvent) => {
+  const handleResizeStart = (e: React.MouseEvent | React.TouchEvent) => {
+    isResizing.current = true;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    startY.current = clientY;
+    startH.current = height;
+    if ("touches" in e) {
+      // touch-based resize
+    } else {
+      (e as React.MouseEvent).preventDefault();
+    }
+
+    const onMove = (ev: MouseEvent | TouchEvent) => {
       if (!isResizing.current) return;
-      const delta = startY.current - ev.clientY;
-      const newH = Math.max(
-        80,
-        Math.min(startH.current + delta, window.innerHeight * 0.6),
-      );
+      const y = "touches" in ev ? ev.touches[0].clientY : ev.clientY;
+      const delta = startY.current - y;
+      const maxH = isMobile
+        ? window.innerHeight * 0.5
+        : window.innerHeight * 0.6;
+      const minH = isMobile ? 160 : 80;
+      const newH = Math.max(minH, Math.min(startH.current + delta, maxH));
       onHeightChange(newH);
     };
     const onUp = () => {
       isResizing.current = false;
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("touchend", onUp);
   };
 
   const TABS: { id: PanelTab; label: string }[] = [
@@ -145,31 +162,36 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
       {visible && (
         <motion.div
           className="flex-shrink-0 border-t border-[var(--border)] flex flex-col overflow-hidden"
-          style={{ background: "var(--bg-panel)", height }}
+          style={{ background: "var(--bg-panel)", height: effectiveHeight }}
           initial={{ height: 0, opacity: 0 }}
-          animate={{ height, opacity: 1 }}
+          animate={{ height: effectiveHeight, opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.2 }}
           data-ocid="bottom.panel"
         >
-          {/* Resize handle */}
+          {/* Resize handle — taller on mobile */}
           <div
-            className="flex-shrink-0 h-1 cursor-ns-resize hover:bg-[var(--accent)] transition-colors"
+            className={`flex-shrink-0 cursor-ns-resize hover:bg-[var(--accent)] transition-colors ${isMobile ? "h-3" : "h-1"}`}
             style={{ background: "transparent" }}
             onMouseDown={handleResizeStart}
+            onTouchStart={handleResizeStart}
           />
 
-          {/* Tabs */}
+          {/* Tabs — scrollable on mobile */}
           <div
-            className="flex items-center border-b border-[var(--border)] flex-shrink-0 px-2"
-            style={{ height: 32, background: "var(--bg-tab-bar)" }}
+            className="flex items-center border-b border-[var(--border)] flex-shrink-0 px-2 overflow-x-auto"
+            style={{
+              height: 32,
+              background: "var(--bg-tab-bar)",
+              scrollbarWidth: "none",
+            }}
           >
             {TABS.map((tab) => (
               <button
                 type="button"
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 h-full text-xs transition-colors border-b-2 ${
+                className={`px-4 h-full text-xs transition-colors border-b-2 whitespace-nowrap flex-shrink-0 ${
                   activeTab === tab.id
                     ? "text-[var(--text-primary)] border-[var(--accent)]"
                     : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]"
@@ -179,7 +201,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                 {tab.label}
               </button>
             ))}
-            <div className="ml-auto flex items-center gap-1">
+            <div className="ml-auto flex items-center gap-1 flex-shrink-0">
               <button
                 type="button"
                 onClick={onToggle}

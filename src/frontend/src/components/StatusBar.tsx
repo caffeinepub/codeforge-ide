@@ -5,14 +5,23 @@ import {
   GitBranch,
 } from "lucide-react";
 import type React from "react";
+import { useIsMobile } from "../hooks/use-mobile";
 import { useEditorStore } from "../stores/editorStore";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useThemeStore } from "../stores/themeStore";
 
-export const StatusBar: React.FC = () => {
+interface StatusBarProps {
+  isMobile?: boolean;
+}
+
+export const StatusBar: React.FC<StatusBarProps> = ({
+  isMobile: isMobileProp,
+}) => {
   const { openFiles, activeFileId } = useEditorStore();
   const { theme } = useThemeStore();
   const { settings } = useSettingsStore();
+  const isMobileHook = useIsMobile();
+  const isMobile = isMobileProp ?? isMobileHook;
 
   const activeFile = openFiles.find((f) => f.id === activeFileId);
   const cursorPos = activeFile?.cursorPosition ?? { lineNumber: 1, column: 1 };
@@ -37,17 +46,19 @@ export const StatusBar: React.FC = () => {
           <GitBranch size={11} />
           <span>main</span>
         </span>
-        <span className="flex items-center gap-1.5 hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
-          <AlertCircle size={11} />
-          <span>0</span>
-          <AlertTriangle size={11} className="ml-1" />
-          <span>2</span>
-        </span>
+        {!isMobile && (
+          <span className="flex items-center gap-1.5 hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
+            <AlertCircle size={11} />
+            <span>0</span>
+            <AlertTriangle size={11} className="ml-1" />
+            <span>2</span>
+          </span>
+        )}
       </div>
 
       {/* Right */}
       <div className="flex items-center gap-3">
-        {activeFile && (
+        {activeFile && !isMobile && (
           <>
             <span className="hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
               Ln {cursorPos.lineNumber}, Col {cursorPos.column}
@@ -61,16 +72,20 @@ export const StatusBar: React.FC = () => {
             <span className="hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
               LF
             </span>
-            <span className="capitalize hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
-              {langLabel}
-            </span>
           </>
         )}
-        <span className="hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors capitalize">
-          {theme === "high-contrast"
-            ? "HC Dark"
-            : theme.charAt(0).toUpperCase() + theme.slice(1)}
-        </span>
+        {activeFile && (
+          <span className="capitalize hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
+            {langLabel}
+          </span>
+        )}
+        {!isMobile && (
+          <span className="hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors capitalize">
+            {theme === "high-contrast"
+              ? "HC Dark"
+              : theme.charAt(0).toUpperCase() + theme.slice(1)}
+          </span>
+        )}
         <span className="flex items-center gap-1 hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
           <CheckCircle size={11} />
         </span>

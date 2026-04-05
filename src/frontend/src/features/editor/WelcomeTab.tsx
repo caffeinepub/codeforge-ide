@@ -1,6 +1,7 @@
 import { Clock, Keyboard, Plus, Terminal } from "lucide-react";
 import { motion } from "motion/react";
 import type React from "react";
+import { useIsMobile } from "../../hooks/use-mobile";
 import { useEditorStore } from "../../stores/editorStore";
 import {
   FILE_CONTENTS,
@@ -33,6 +34,7 @@ const SHORTCUTS = [
 
 export const WelcomeTab: React.FC = () => {
   const { openFile } = useEditorStore();
+  const isMobile = useIsMobile();
 
   const handleOpenRecent = (file: (typeof RECENT_FILES)[0]) => {
     const content = FILE_CONTENTS[file.path] ?? `// ${file.name}\n`;
@@ -60,7 +62,7 @@ export const WelcomeTab: React.FC = () => {
 
   return (
     <div
-      className="flex-1 overflow-y-auto flex flex-col items-center justify-start p-12"
+      className="flex-1 overflow-y-auto flex flex-col items-center justify-start p-6 md:p-12"
       style={{ background: "var(--bg-editor)" }}
     >
       <motion.div
@@ -69,7 +71,7 @@ export const WelcomeTab: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className="mb-12 text-center">
+        <div className="mb-8 md:mb-12 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <div
               className="w-14 h-14 rounded-lg flex items-center justify-center text-2xl"
@@ -78,22 +80,25 @@ export const WelcomeTab: React.FC = () => {
                 boxShadow: "0 0 32px var(--accent)44",
               }}
             >
-              \u26a1
+              &#9889;
             </div>
           </div>
           <h1
-            className="text-4xl font-bold mb-2"
+            className="text-3xl md:text-4xl font-bold mb-2"
             style={{ color: "var(--text-primary)" }}
           >
             CodeForge IDE
           </h1>
-          <p className="text-base" style={{ color: "var(--text-secondary)" }}>
+          <p
+            className="text-sm md:text-base"
+            style={{ color: "var(--text-secondary)" }}
+          >
             A VS Code-like editor for the Web, powered by Internet Computer
             Protocol
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h2
               className="text-xs font-semibold uppercase tracking-wider mb-3"
@@ -165,45 +170,48 @@ export const WelcomeTab: React.FC = () => {
             </div>
           </div>
 
-          <div>
-            <h2
-              className="text-xs font-semibold uppercase tracking-wider mb-3"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <span className="flex items-center gap-1">
-                <Keyboard size={12} /> Shortcuts
-              </span>
-            </h2>
-            <div className="space-y-1">
-              {SHORTCUTS.map(({ key, action }) => (
-                <div
-                  key={key}
-                  className="flex items-center justify-between px-3 py-1.5"
-                >
-                  <span
-                    className="text-xs"
-                    style={{ color: "var(--text-secondary)" }}
+          {/* Shortcuts — hidden on mobile */}
+          {!isMobile && (
+            <div>
+              <h2
+                className="text-xs font-semibold uppercase tracking-wider mb-3"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <span className="flex items-center gap-1">
+                  <Keyboard size={12} /> Shortcuts
+                </span>
+              </h2>
+              <div className="space-y-1">
+                {SHORTCUTS.map(({ key, action }) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between px-3 py-1.5"
                   >
-                    {action}
-                  </span>
-                  <kbd
-                    className="text-[10px] rounded px-1.5 py-0.5 border"
-                    style={{
-                      background: "var(--bg-tab-inactive)",
-                      borderColor: "var(--border)",
-                      color: "var(--text-primary)",
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    {key}
-                  </kbd>
-                </div>
-              ))}
+                    <span
+                      className="text-xs"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      {action}
+                    </span>
+                    <kbd
+                      className="text-[10px] rounded px-1.5 py-0.5 border"
+                      style={{
+                        background: "var(--bg-tab-inactive)",
+                        borderColor: "var(--border)",
+                        color: "var(--text-primary)",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {key}
+                    </kbd>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        <div className="mt-12 text-center border-t border-[var(--border)] pt-6">
+        <div className="mt-8 md:mt-12 text-center border-t border-[var(--border)] pt-6">
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
             Phase 2: AI Assistant, Extensions Marketplace, Cloud Sync,
             Collaborative Editing

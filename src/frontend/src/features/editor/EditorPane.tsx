@@ -2,6 +2,7 @@ import MonacoEditor from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import type React from "react";
 import { useCallback, useRef } from "react";
+import { useIsMobile } from "../../hooks/use-mobile";
 import { useEditorStore } from "../../stores/editorStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useThemeStore } from "../../stores/themeStore";
@@ -27,6 +28,7 @@ export const EditorPane: React.FC<EditorPaneProps> = ({ isPrimary = true }) => {
 
   const { settings } = useSettingsStore();
   const { theme } = useThemeStore();
+  const isMobile = useIsMobile();
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
 
   const effectiveActiveId = isPrimary ? activeFileId : secondPaneActiveFileId;
@@ -81,11 +83,13 @@ export const EditorPane: React.FC<EditorPaneProps> = ({ isPrimary = true }) => {
             onChange={(val) => updateFileContent(activeFile.id, val ?? "")}
             onMount={handleEditorMount}
             options={{
-              fontSize: settings.fontSize,
+              fontSize: isMobile
+                ? Math.max(14, settings.fontSize)
+                : settings.fontSize,
               fontFamily: settings.fontFamily,
               fontLigatures: true,
-              minimap: { enabled: settings.minimap },
-              wordWrap: settings.wordWrap ? "on" : "off",
+              minimap: { enabled: isMobile ? false : settings.minimap },
+              wordWrap: isMobile || settings.wordWrap ? "on" : "off",
               lineNumbers: settings.lineNumbers ? "on" : "off",
               tabSize: settings.tabSize,
               automaticLayout: true,
@@ -95,11 +99,11 @@ export const EditorPane: React.FC<EditorPaneProps> = ({ isPrimary = true }) => {
               renderLineHighlight: "all",
               cursorBlinking: "blink",
               smoothScrolling: true,
-              mouseWheelZoom: true,
+              mouseWheelZoom: !isMobile,
               contextmenu: true,
               padding: { top: 8, bottom: 8 },
               suggest: { showKeywords: true },
-              quickSuggestions: true,
+              quickSuggestions: !isMobile,
               autoIndent: "full",
               formatOnPaste: true,
               formatOnType: true,
