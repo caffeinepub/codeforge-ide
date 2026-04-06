@@ -8,15 +8,20 @@ import {
   Bookmark,
   Bot,
   Brain,
+  Bug,
   Cloud,
   Crown,
+  Database,
   Eye,
+  FileClock,
   FileText,
   Files,
   GitBranch,
   GitFork,
   GitGraph,
   History,
+  Layout,
+  Play,
   Puzzle,
   Scissors,
   Search,
@@ -50,7 +55,12 @@ export type ActivityTab =
   | "collab"
   | "social"
   | "cicd"
-  | "vcs";
+  | "vcs"
+  | "structure"
+  | "database"
+  | "run-configs"
+  | "local-history"
+  | "inspections";
 
 interface ActivityBarProps {
   activePanel: ActivityTab;
@@ -76,6 +86,16 @@ const ITEMS: { id: ActivityTab; icon: React.ReactNode; label: string }[] = [
   { id: "bookmarks", icon: <Bookmark size={22} />, label: "Bookmarks" },
   { id: "recent", icon: <History size={22} />, label: "Recent Files" },
   { id: "cloud", icon: <Cloud size={22} />, label: "Cloud Files" },
+  // IntelliJ IDEA-inspired panels
+  { id: "structure", icon: <Layout size={22} />, label: "Code Structure" },
+  { id: "database", icon: <Database size={22} />, label: "Database" },
+  { id: "run-configs", icon: <Play size={22} />, label: "Run Configurations" },
+  {
+    id: "local-history",
+    icon: <FileClock size={22} />,
+    label: "Local History",
+  },
+  { id: "inspections", icon: <Bug size={22} />, label: "Code Inspections" },
 ];
 
 const BOTTOM_ITEMS: {

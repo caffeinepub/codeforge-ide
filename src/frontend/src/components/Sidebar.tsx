@@ -1,11 +1,14 @@
 import {
   ChevronDown,
+  FileCode2,
   FileInput,
   FilePlus,
   FolderOpen,
+  Plus,
   RefreshCw,
 } from "lucide-react";
 import type React from "react";
+import { useState } from "react";
 import { FileTree } from "../features/filesystem/FileTree";
 import { SearchPanel } from "../features/filesystem/SearchPanel";
 import { useEditorStore } from "../stores/editorStore";
@@ -19,33 +22,48 @@ import type { ActivityTab } from "./ActivityBar";
 import { BookmarksPanel } from "./BookmarksPanel";
 import { CICDPanel } from "./CICDPanel";
 import { CloudFilesPanel } from "./CloudFilesPanel";
+import { CodeInspectionsPanel } from "./CodeInspectionsPanel";
+import { CodeStructurePanel } from "./CodeStructurePanel";
 import { CollaborationPanel } from "./CollaborationPanel";
+import { DatabasePanel } from "./DatabasePanel";
 import { ExtensionsMarketplace } from "./ExtensionsMarketplace";
 import { GitHubPanel } from "./GitHubPanel";
 import { GitPanel } from "./GitPanel";
 import { IntelligencePanel } from "./IntelligencePanel";
 import { LivePreviewPanel } from "./LivePreviewPanel";
+import { LocalHistoryPanel } from "./LocalHistoryPanel";
 import { NotesPanel } from "./NotesPanel";
 import { RecentFilesPanel } from "./RecentFilesPanel";
+import { RunConfigurationsPanel } from "./RunConfigurationsPanel";
 import { SnippetsPanel } from "./SnippetsPanel";
 import { SocialCodingPanel } from "./SocialCodingPanel";
 import { VersionControlPanel } from "./VersionControlPanel";
 
 interface SidebarProps {
   activePanel: ActivityTab;
-  width: number;
+  width?: number;
   onOpenGitHub?: () => void;
 }
 
+const SCRATCH_FILES_KEY = "codeveda_scratch";
+
+const DEFAULT_SCRATCH_FILES = [
+  { name: "scratch.js", language: "javascript" },
+  { name: "scratch.ts", language: "typescript" },
+  { name: "scratch.md", language: "markdown" },
+];
+
 export const Sidebar: React.FC<SidebarProps> = ({
   activePanel,
-  width,
+  width = 260,
   onOpenGitHub,
 }) => {
   const { addFile, loadFromDirectory, loadFile, projectName } =
     useFilesystemStore();
   const { openFile } = useEditorStore();
   const { addNotification } = useNotificationStore();
+  const [scratchCollapsed, setScratchCollapsed] = useState(false);
+  const [scratchFiles, setScratchFiles] = useState(DEFAULT_SCRATCH_FILES);
 
   const handleNewFile = () => {
     const name = `untitled-${Date.now().toString(36)}.ts`;
@@ -106,6 +124,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const openScratchFile = (sf: { name: string; language: string }) => {
+    const storageKey = `${SCRATCH_FILES_KEY}_${sf.name}`;
+    const content = localStorage.getItem(storageKey) ?? `// ${sf.name}\n`;
+    openFile({
+      id: `scratch_${sf.name}`,
+      name: sf.name,
+      path: `/scratch/${sf.name}`,
+      content,
+      language: sf.language,
+      isDirty: false,
+    });
+  };
+
+  const addScratchFile = () => {
+    const ext = ["js", "ts", "md", "txt", "css"][Math.floor(Math.random() * 5)];
+    const name = `scratch-${Date.now().toString(36)}.${ext}`;
+    const langMap: Record<string, string> = {
+      js: "javascript",
+      ts: "typescript",
+      md: "markdown",
+      txt: "plaintext",
+      css: "css",
+    };
+    const newFile = { name, language: langMap[ext] };
+    setScratchFiles((prev) => [...prev, newFile]);
+    openScratchFile(newFile);
+  };
+
   // Full-height panels that replace the sidebar entirely
   const fullPanelMap: Partial<Record<ActivityTab, React.ReactNode>> = {
     extensions: <ExtensionsMarketplace />,
@@ -123,6 +169,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     social: <SocialCodingPanel />,
     cicd: <CICDPanel />,
     vcs: <VersionControlPanel />,
+    // IntelliJ-inspired panels
+    structure: <CodeStructurePanel />,
+    database: <DatabasePanel />,
+    "run-configs": <RunConfigurationsPanel />,
+    "local-history": <LocalHistoryPanel />,
+    inspections: <CodeInspectionsPanel />,
   };
 
   if (fullPanelMap[activePanel]) {
@@ -204,7 +256,69 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
           </button>
 
-          <FileTree />
+          <div className="flex-1 overflow-y-auto">
+            <FileTree />
+
+            {/* Scratch Files section */}
+            <div className="border-t border-[var(--border)] mt-1">
+              <button
+                type="button"
+                className="flex items-center justify-between w-full px-2 py-1.5 hover:bg-[var(--hover-item)] transition-colors"
+                onClick={() => setScratchCollapsed((v) => !v)}
+              >
+                <div className="flex items-center gap-1">
+                  <ChevronDown
+                    size={10}
+                    className={`text-[var(--text-muted)] transition-transform ${
+                      scratchCollapsed ? "-rotate-90" : ""
+                    }`}
+                  />
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Scratch Files
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="p-0.5 rounded hover:bg-[var(--hover-item)]"
+                  title="New Scratch File"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addScratchFile();
+                  }}
+                  data-ocid="sidebar.scratch.primary_button"
+                >
+                  <Plus size={11} style={{ color: "var(--text-muted)" }} />
+                </button>
+              </button>
+              {!scratchCollapsed && (
+                <div className="pb-1">
+                  {scratchFiles.map((sf) => (
+                    <button
+                      key={sf.name}
+                      type="button"
+                      className="flex items-center gap-2 w-full px-4 py-1 hover:bg-[var(--hover-item)] transition-colors text-left"
+                      onClick={() => openScratchFile(sf)}
+                      data-ocid="sidebar.scratch.item"
+                    >
+                      <FileCode2
+                        size={12}
+                        style={{ color: "#c678dd", flexShrink: 0 }}
+                      />
+                      <span
+                        className="text-xs truncate"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        {sf.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </>
       ) : (
         <>

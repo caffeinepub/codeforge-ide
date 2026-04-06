@@ -1,180 +1,134 @@
-import { FitAddon } from "@xterm/addon-fit";
-import { WebLinksAddon } from "@xterm/addon-web-links";
-import { Terminal } from "@xterm/xterm";
-import "@xterm/xterm/css/xterm.css";
-import type {
-  DirectoryNode,
-  FileNode,
-  FileSystemTree,
-} from "@webcontainer/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type React from "react";
-import type { FSNode } from "../features/filesystem/mockFileSystem";
 import { useFilesystemStore } from "../stores/filesystemStore";
 
-// Build WebContainer FileSystemTree from FSNode tree
-function buildWebContainerFS(nodes: FSNode[]): FileSystemTree {
-  const result: FileSystemTree = {};
-  for (const node of nodes) {
-    if (node.type === "file") {
-      const fileNode: FileNode = { file: { contents: node.content ?? "" } };
-      result[node.name] = fileNode;
-    } else if (node.type === "folder" && node.children) {
-      const dirNode: DirectoryNode = {
-        directory: buildWebContainerFS(node.children),
-      };
-      result[node.name] = dirNode;
-    }
-  }
-  return result;
+// ──────────────────────────────────────────────
+// Pure TypeScript terminal emulator (no external deps)
+// Compatible with build environment where @xterm is unavailable
+// ──────────────────────────────────────────────
+
+const MOCK_FS: Record<string, string[]> = {
+  "/workspace": [
+    "src",
+    "public",
+    "package.json",
+    "tsconfig.json",
+    "vite.config.ts",
+    "README.md",
+    "node_modules",
+    ".gitignore",
+  ],
+  "/workspace/src": [
+    "App.tsx",
+    "main.tsx",
+    "index.css",
+    "components",
+    "stores",
+    "hooks",
+    "features",
+  ],
+  "/workspace/src/components": [
+    "ActivityBar.tsx",
+    "MenuBar.tsx",
+    "Sidebar.tsx",
+    "StatusBar.tsx",
+    "BottomPanel.tsx",
+    "CodeStructurePanel.tsx",
+    "DatabasePanel.tsx",
+  ],
+  "/workspace/src/stores": [
+    "editorStore.ts",
+    "authStore.ts",
+    "gitStore.ts",
+    "themeStore.ts",
+    "settingsStore.ts",
+    "filesystemStore.ts",
+  ],
+  "/workspace/public": ["index.html", "favicon.ico"],
+  "/workspace/node_modules": [
+    "react",
+    "react-dom",
+    "vite",
+    "typescript",
+    "tailwindcss",
+    "zustand",
+  ],
+};
+
+const MOCK_FILE_CONTENTS: Record<string, string> = {
+  "package.json": JSON.stringify(
+    {
+      name: "codeveda",
+      version: "13.0.0",
+      scripts: {
+        dev: "vite",
+        build: "tsc && vite build",
+        lint: "biome check src",
+        typecheck: "tsc --noEmit",
+      },
+    },
+    null,
+    2,
+  ),
+  "README.md":
+    "# CodeVeda\n\nAI-powered collaborative cloud IDE.\nBuilt on ICP with Motoko backend.",
+  ".gitignore": "node_modules/\ndist/\n.env\n*.log",
+};
+
+function stripAnsi(str: string): string {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape codes
+  return str.replace(/\x1b\[[0-9;]*m/g, "");
 }
 
-// ──────────────────────────────────────────────
-// Enhanced mock shell — runs when WebContainers
-// are unavailable (no COOP/COEP on production).
-// ──────────────────────────────────────────────
-function startMockShell(term: Terminal) {
-  let cwd = "/workspace";
-  let buffer = "";
-  let historyIndex = -1;
-  const cmdHistory: string[] = [];
+class SimpleTerminal {
+  private lines: string[] = [];
+  private onOutputChange: (lines: string[]) => void;
+  private cwd = "/workspace";
+  private cmdHistory: string[] = [];
 
-  const MOCK_FS: Record<string, string[]> = {
-    "/workspace": [
-      "src",
-      "public",
-      "package.json",
-      "tsconfig.json",
-      "vite.config.ts",
-      "README.md",
-      "node_modules",
-      ".gitignore",
-    ],
-    "/workspace/src": [
-      "App.tsx",
-      "main.tsx",
-      "index.css",
-      "components",
-      "stores",
-      "hooks",
-      "features",
-      "declarations",
-    ],
-    "/workspace/src/components": [
-      "ActivityBar.tsx",
-      "MenuBar.tsx",
-      "Sidebar.tsx",
-      "StatusBar.tsx",
-      "BottomPanel.tsx",
-      "InteractiveTerminal.tsx",
-      "AIChatPanel.tsx",
-      "GitHubPanel.tsx",
-      "CollaborationPanel.tsx",
-    ],
-    "/workspace/src/stores": [
-      "editorStore.ts",
-      "authStore.ts",
-      "gitStore.ts",
-      "themeStore.ts",
-      "settingsStore.ts",
-      "filesystemStore.ts",
-    ],
-    "/workspace/src/hooks": [
-      "useEditor.ts",
-      "useTheme.ts",
-      "useAuth.ts",
-      "useFileSystem.ts",
-    ],
-    "/workspace/public": ["index.html", "favicon.ico"],
-    "/workspace/node_modules": [
-      "react",
-      "react-dom",
-      "vite",
-      "typescript",
-      "tailwindcss",
-      "monaco-editor",
-      "@xterm",
-      "zustand",
-    ],
-  };
+  constructor(onOutputChange: (lines: string[]) => void) {
+    this.onOutputChange = onOutputChange;
+  }
 
-  const MOCK_FILE_CONTENTS: Record<string, string> = {
-    "package.json": JSON.stringify(
-      {
-        name: "codeveda",
-        version: "12.0.0",
-        private: true,
-        scripts: {
-          dev: "vite",
-          build: "tsc && vite build",
-          preview: "vite preview",
-          lint: "biome check src",
-          typecheck: "tsc --noEmit",
-        },
-        dependencies: {
-          react: "^19.0.0",
-          "react-dom": "^19.0.0",
-          zustand: "^5.0.0",
-          "monaco-editor": "^0.52.0",
-          "@xterm/xterm": "^5.5.0",
-          "@webcontainer/api": "^1.3.0",
-        },
-      },
-      null,
-      2,
-    ),
-    "README.md":
-      "# CodeVeda\n\nA next-generation AI-powered collaborative cloud IDE.\nBuilt on ICP with Motoko backend.\n\n## Features\n- Monaco Editor (VS Code engine)\n- AI Chat (ChatGPT-style)\n- GitHub Integration\n- Real-time Collaboration\n- CI/CD Pipeline\n- Cloud Storage\n",
-    "tsconfig.json": JSON.stringify(
-      {
-        compilerOptions: {
-          target: "ES2020",
-          lib: ["ES2020", "DOM"],
-          jsx: "react-jsx",
-          strict: true,
-          moduleResolution: "bundler",
-        },
-      },
-      null,
-      2,
-    ),
-    ".gitignore": "node_modules/\ndist/\n.env\n.env.local\n*.log\n.DS_Store\n",
-    "vite.config.ts":
-      'import { defineConfig } from "vite";\nimport react from "@vitejs/plugin-react";\n\nexport default defineConfig({\n  plugins: [react()],\n  server: {\n    headers: {\n      "Cross-Origin-Embedder-Policy": "require-corp",\n      "Cross-Origin-Opener-Policy": "same-origin",\n    },\n  },\n});\n',
-  };
+  private write(text: string) {
+    const newLines = text.split(/\r?\n/);
+    if (this.lines.length === 0) {
+      this.lines = newLines;
+    } else {
+      this.lines[this.lines.length - 1] += newLines[0];
+      this.lines.push(...newLines.slice(1));
+    }
+    if (this.lines.length > 500) this.lines = this.lines.slice(-500);
+    this.onOutputChange([...this.lines]);
+  }
 
-  const ANSI = {
-    reset: "\x1b[0m",
-    bold: "\x1b[1m",
-    dim: "\x1b[2m",
-    red: "\x1b[31m",
-    green: "\x1b[32m",
-    yellow: "\x1b[33m",
-    blue: "\x1b[34m",
-    cyan: "\x1b[36m",
-    white: "\x1b[37m",
-    gray: "\x1b[90m",
-  };
+  private writeln(text: string) {
+    this.write(`${text}\n`);
+  }
 
-  const writePrompt = () => {
-    const dirName = cwd === "/workspace" ? "workspace" : cwd.split("/").pop();
-    term.write(
-      `\r\n${ANSI.green}user${ANSI.reset}:${ANSI.blue}${dirName}${ANSI.reset}${ANSI.bold}$${ANSI.reset} `,
-    );
-  };
+  prompt() {
+    const dirName =
+      this.cwd === "/workspace" ? "workspace" : this.cwd.split("/").pop();
+    this.write(`\nuser:${dirName}$ `);
+  }
 
-  const processCommand = (cmd: string) => {
+  clear() {
+    this.lines = [];
+    this.onOutputChange([]);
+    this.prompt();
+  }
+
+  processCommand(cmd: string) {
     const trimmed = cmd.trim();
     if (!trimmed) {
-      writePrompt();
+      this.prompt();
       return;
     }
 
-    if (trimmed !== cmdHistory[0]) {
-      cmdHistory.unshift(trimmed);
-      if (cmdHistory.length > 50) cmdHistory.pop();
+    if (trimmed !== this.cmdHistory[0]) {
+      this.cmdHistory.unshift(trimmed);
+      if (this.cmdHistory.length > 50) this.cmdHistory.pop();
     }
-    historyIndex = -1;
 
     const parts = trimmed.split(/\s+/);
     const command = parts[0];
@@ -182,532 +136,267 @@ function startMockShell(term: Terminal) {
 
     switch (command) {
       case "help": {
-        term.writeln(
-          `\r\n${ANSI.cyan}${ANSI.bold}CodeVeda Terminal${ANSI.reset} — Available commands:\n`,
-        );
+        this.writeln("");
+        this.writeln("CodeVeda Terminal v13.0 — Available commands:");
+        this.writeln("");
         const cmds = [
-          ["help", "Show this help message"],
-          ["clear / cls", "Clear terminal screen"],
-          ["ls [-la] [path]", "List directory contents"],
-          ["pwd", "Print working directory"],
+          ["help", "Show this help"],
+          ["clear", "Clear screen"],
+          ["ls [-la]", "List files"],
+          ["pwd", "Print directory"],
           ["cd [path]", "Change directory"],
-          ["cat [file]", "Print file contents"],
-          ["echo [text]", "Print text to terminal"],
-          ["mkdir [dir]", "Create a directory"],
-          ["touch [file]", "Create an empty file"],
+          ["cat [file]", "Show file contents"],
+          ["echo [text]", "Print text"],
+          ["mkdir [dir]", "Create directory"],
+          ["touch [file]", "Create file"],
           ["whoami", "Current user"],
-          ["date", "Current date and time"],
-          ["uname", "System information"],
+          ["date", "Current date"],
           ["node [-v]", "Node.js version"],
-          ["npm [i|run|ls]", "Package manager commands"],
-          ["npx [package]", "Run a package"],
-          ["git [status|log|diff|branch|add|commit]", "Git commands"],
-          ["env", "Show environment variables"],
+          ["npm [run|install|ls]", "Package manager"],
+          ["git [status|log|diff|branch]", "Git commands"],
+          ["ping [host]", "Ping host"],
           ["history", "Command history"],
-          ["which [cmd]", "Locate a command"],
-          ["ping [host]", "Ping a host"],
         ];
         for (const [c, d] of cmds) {
-          term.writeln(
-            `  ${ANSI.yellow}${c.padEnd(38)}${ANSI.reset}${ANSI.gray}${d}${ANSI.reset}`,
-          );
+          this.writeln(`  ${c.padEnd(32)} ${d}`);
         }
         break;
       }
-
       case "clear":
       case "cls":
-        term.clear();
-        break;
-
+        this.clear();
+        return;
       case "pwd":
-        term.writeln(`\r\n${cwd}`);
+        this.writeln(this.cwd);
         break;
-
       case "ls": {
-        const showLong =
-          args.includes("-la") || args.includes("-l") || args.includes("-a");
+        const showLong = args.includes("-la") || args.includes("-l");
         const pathArg = args.find((a) => !a.startsWith("-"));
         const target = pathArg
           ? pathArg.startsWith("/")
             ? pathArg
-            : `${cwd}/${pathArg}`
-          : cwd;
-        const normalized =
-          target.replace(/\/+/g, "/").replace(/\/$/, "") || "/workspace";
+            : `${this.cwd}/${pathArg}`
+          : this.cwd;
+        const normalized = target.replace(/\/+/g, "/").replace(/\/$/, "");
         const contents = MOCK_FS[normalized];
         if (contents) {
-          term.writeln("");
+          this.writeln("");
           if (showLong) {
-            term.writeln(
-              `${ANSI.gray}total ${contents.length * 4}${ANSI.reset}`,
-            );
             for (const item of contents) {
               const isDir =
-                MOCK_FS[`${normalized}/${item}`] !== undefined ||
-                !item.includes(".");
-              const perm = isDir
-                ? `${ANSI.blue}drwxr-xr-x${ANSI.reset}`
-                : "-rw-r--r--";
-              const size = isDir ? "4096" : "1024";
-              const date = "Apr  6 12:00";
-              const name = isDir
-                ? `${ANSI.blue}${item}/${ANSI.reset}`
-                : `${ANSI.white}${item}${ANSI.reset}`;
-              term.writeln(
-                `  ${perm}  1 user user ${size.padStart(6)} ${date} ${name}`,
+                !item.includes(".") ||
+                MOCK_FS[`${normalized}/${item}`] !== undefined;
+              this.writeln(
+                `  ${isDir ? "drwxr-xr-x" : "-rw-r--r--"}  1 user user    1024 Apr  6 12:00 ${item}${isDir ? "/" : ""}`,
               );
             }
           } else {
-            const row: string[] = [];
-            for (const item of contents) {
-              const isDir =
-                MOCK_FS[`${normalized}/${item}`] !== undefined ||
-                !item.includes(".");
-              row.push(
-                isDir
-                  ? `${ANSI.blue}${item}/${ANSI.reset}`
-                  : `${ANSI.white}${item}${ANSI.reset}`,
-              );
-            }
-            term.writeln(`  ${row.join("  ")}`);
+            this.writeln(`  ${contents.join("  ")}`);
           }
         } else {
-          term.writeln(
-            `\r\n${ANSI.red}ls: cannot access '${pathArg || cwd}': No such file or directory${ANSI.reset}`,
+          this.writeln(
+            `ls: cannot access '${pathArg || this.cwd}': No such file or directory`,
           );
         }
         break;
       }
-
       case "cd": {
-        if (!args[0] || args[0] === "~" || args[0] === "/workspace") {
-          cwd = "/workspace";
-        } else if (args[0] === "-") {
-          term.writeln(`\r\n${cwd}`);
+        if (!args[0] || args[0] === "~") {
+          this.cwd = "/workspace";
         } else if (args[0] === "..") {
-          const parts2 = cwd.split("/").filter(Boolean);
+          const parts2 = this.cwd.split("/").filter(Boolean);
           parts2.pop();
-          cwd = parts2.length === 0 ? "/" : `/${parts2.join("/")}`;
+          this.cwd = parts2.length === 0 ? "/" : `/${parts2.join("/")}`;
         } else {
-          const next = args[0].startsWith("/") ? args[0] : `${cwd}/${args[0]}`;
-          const normalized2 = next.replace(/\/+/g, "/").replace(/\/$/, "");
-          if (MOCK_FS[normalized2] !== undefined) {
-            cwd = normalized2;
+          const next = args[0].startsWith("/")
+            ? args[0]
+            : `${this.cwd}/${args[0]}`;
+          const norm2 = next.replace(/\/+/g, "/").replace(/\/$/, "");
+          if (MOCK_FS[norm2] !== undefined) {
+            this.cwd = norm2;
           } else {
-            term.writeln(
-              `\r\n${ANSI.red}cd: ${args[0]}: No such file or directory${ANSI.reset}`,
-            );
+            this.writeln(`cd: ${args[0]}: No such file or directory`);
           }
         }
         break;
       }
-
       case "echo":
-        term.writeln(`\r\n${args.join(" ").replace(/\$HOME/g, "/workspace")}`);
+        this.writeln(args.join(" "));
         break;
-
       case "cat": {
-        const fileName = args[0];
-        if (!fileName) {
-          term.writeln(`\r\n${ANSI.red}cat: missing file operand${ANSI.reset}`);
+        const fname = args[0];
+        if (!fname) {
+          this.writeln("cat: missing file operand");
           break;
         }
-        const content =
-          MOCK_FILE_CONTENTS[fileName] ??
-          MOCK_FILE_CONTENTS[fileName.split("/").pop() ?? ""];
-        if (content) {
-          term.writeln("");
-          for (const line of content.split("\n")) {
-            term.writeln(line);
-          }
+        const fc =
+          MOCK_FILE_CONTENTS[fname] ??
+          MOCK_FILE_CONTENTS[fname.split("/").pop() ?? ""];
+        if (fc) {
+          this.writeln(fc);
         } else {
-          term.writeln(
-            `\r\n${ANSI.red}cat: ${fileName}: No such file or directory${ANSI.reset}`,
-          );
+          this.writeln(`cat: ${fname}: No such file or directory`);
         }
         break;
       }
-
-      case "mkdir": {
+      case "mkdir":
         if (!args[0]) {
-          term.writeln(`\r\n${ANSI.red}mkdir: missing operand${ANSI.reset}`);
+          this.writeln("mkdir: missing operand");
         } else {
           const newPath = args[0].startsWith("/")
             ? args[0]
-            : `${cwd}/${args[0]}`;
+            : `${this.cwd}/${args[0]}`;
           MOCK_FS[newPath] = [];
-          if (MOCK_FS[cwd]) MOCK_FS[cwd].push(args[0]);
-          term.writeln(
-            `\r\n${ANSI.green}Created directory: ${args[0]}${ANSI.reset}`,
-          );
+          if (MOCK_FS[this.cwd]) MOCK_FS[this.cwd].push(args[0]);
+          this.writeln(`Created directory: ${args[0]}`);
         }
         break;
-      }
-
-      case "touch": {
+      case "touch":
         if (!args[0]) {
-          term.writeln(`\r\n${ANSI.red}touch: missing operand${ANSI.reset}`);
+          this.writeln("touch: missing operand");
         } else {
-          if (MOCK_FS[cwd] && !MOCK_FS[cwd].includes(args[0])) {
-            MOCK_FS[cwd].push(args[0]);
+          if (MOCK_FS[this.cwd] && !MOCK_FS[this.cwd].includes(args[0])) {
+            MOCK_FS[this.cwd].push(args[0]);
           }
-          term.writeln(`\r\n${ANSI.green}Created: ${args[0]}${ANSI.reset}`);
+          this.writeln(`Created: ${args[0]}`);
         }
         break;
-      }
-
       case "whoami":
-        term.writeln("\r\nuser");
+        this.writeln("user");
         break;
-
       case "date":
-        term.writeln(`\r\n${new Date().toString()}`);
+        this.writeln(new Date().toString());
         break;
-
       case "uname":
-        if (args[0] === "-a") {
-          term.writeln(
-            "\r\nLinux codeveda 5.15.0-webcontainer #1 SMP x86_64 GNU/Linux",
-          );
-        } else {
-          term.writeln("\r\nLinux");
-        }
-        break;
-
-      case "env":
-        term.writeln(`\r\n${ANSI.gray}USER=user${ANSI.reset}`);
-        term.writeln(`${ANSI.gray}HOME=/workspace${ANSI.reset}`);
-        term.writeln(
-          `${ANSI.gray}PATH=/usr/local/bin:/usr/bin:/bin${ANSI.reset}`,
+        this.writeln(
+          args[0] === "-a"
+            ? "Linux codeveda 5.15.0 #1 SMP x86_64 GNU/Linux"
+            : "Linux",
         );
-        term.writeln(`${ANSI.gray}NODE_ENV=development${ANSI.reset}`);
-        term.writeln(`${ANSI.gray}PWD=${cwd}${ANSI.reset}`);
-        term.writeln(`${ANSI.gray}SHELL=/bin/bash${ANSI.reset}`);
         break;
-
+      case "env":
+        this.writeln(
+          `USER=user\nHOME=/workspace\nNODE_ENV=development\nPWD=${this.cwd}`,
+        );
+        break;
       case "history":
-        term.writeln("");
-        cmdHistory
+        this.writeln("");
+        this.cmdHistory
           .slice()
           .reverse()
           .forEach((h, i) => {
-            term.writeln(`  ${String(i + 1).padStart(4)}  ${h}`);
+            this.writeln(`  ${String(i + 1).padStart(4)}  ${h}`);
           });
         break;
-
-      case "which":
-        if (args[0]) {
-          const builtins = [
-            "node",
-            "npm",
-            "npx",
-            "git",
-            "ls",
-            "cd",
-            "echo",
-            "cat",
-          ];
-          if (builtins.includes(args[0])) {
-            term.writeln(`\r\n/usr/local/bin/${args[0]}`);
-          } else {
-            term.writeln(
-              `\r\n${ANSI.red}which: ${args[0]}: not found${ANSI.reset}`,
-            );
-          }
-        }
-        break;
-
-      case "ping":
-        if (args[0]) {
-          term.writeln(
-            `\r\n${ANSI.cyan}PING ${args[0]} (127.0.0.1): 56 data bytes${ANSI.reset}`,
-          );
-          let count = 0;
-          const iv = setInterval(() => {
-            const ms = (Math.random() * 10 + 1).toFixed(3);
-            term.writeln(
-              `64 bytes from ${args[0]}: icmp_seq=${count} ttl=64 time=${ms} ms`,
-            );
-            count++;
-            if (count >= 4) {
-              clearInterval(iv);
-              term.writeln(`\r\n--- ${args[0]} ping statistics ---`);
-              term.writeln("4 packets transmitted, 4 received, 0% packet loss");
-              writePrompt();
-            }
-          }, 500);
-          return;
-        }
-        break;
-
       case "node":
         if (args[0] === "--version" || args[0] === "-v") {
-          term.writeln("\r\nv20.11.0");
-        } else if (!args[0]) {
-          term.writeln(
-            `\r\n${ANSI.cyan}Welcome to Node.js v20.11.0.${ANSI.reset}`,
-          );
-          term.writeln(
-            `${ANSI.gray}Type ".exit" to exit the REPL${ANSI.reset}`,
-          );
-          term.writeln("> ");
+          this.writeln("v20.11.0");
         } else {
-          term.writeln(
-            `\r\n${ANSI.yellow}[Node.js v20.11.0 — browser simulation]${ANSI.reset}`,
-          );
+          this.writeln("Welcome to Node.js v20.11.0.");
+          this.writeln('Type ".exit" to exit the REPL');
         }
         break;
-
       case "npm":
-        if (!args[0] || args[0] === "--help") {
-          term.writeln(`\r\n${ANSI.cyan}npm${ANSI.reset} <command>\n`);
-          term.writeln("Usage:");
-          term.writeln("  npm install / i      Install all packages");
-          term.writeln("  npm install <pkg>    Install a package");
-          term.writeln("  npm run <script>     Run a script");
-          term.writeln("  npm ls               List installed packages");
-          term.writeln("  npm --version        Show npm version");
-        } else if (args[0] === "--version" || args[0] === "-v") {
-          term.writeln("\r\n10.2.4");
-        } else if (args[0] === "ls" || args[0] === "list") {
-          term.writeln(`\r\n${ANSI.cyan}codeveda@12.0.0${ANSI.reset} ${cwd}`);
-          term.writeln("├── react@19.0.0");
-          term.writeln("├── react-dom@19.0.0");
-          term.writeln("├── zustand@5.0.0");
-          term.writeln("├── monaco-editor@0.52.0");
-          term.writeln("├── @xterm/xterm@5.5.0");
-          term.writeln("└── @webcontainer/api@1.3.0");
-        } else if (args[0] === "install" || args[0] === "i") {
-          const pkg = args[1] ? ` ${ANSI.cyan}${args[1]}${ANSI.reset}` : "";
-          term.writeln(
-            `\r\n${ANSI.gray}npm warn${ANSI.reset} Running in browser simulation mode`,
+        if (!args[0]) {
+          this.writeln(
+            "npm <command>\nUsage: npm install | npm run <script> | npm ls",
           );
-          term.writeln(`${ANSI.cyan}⠋ Resolving packages...${ANSI.reset}`);
-          let step = 0;
-          const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-          const iv2 = setInterval(() => {
-            term.write(
-              `\r${ANSI.cyan}${frames[step % frames.length]} ${step < 5 ? "Fetching" : step < 10 ? "Linking" : "Building"} packages...${ANSI.reset}`,
-            );
-            step++;
-            if (step >= 15) {
-              clearInterval(iv2);
-              term.writeln(
-                `\r${ANSI.green}\u2713 Added${pkg || " 1247 packages"} in 3.2s${ANSI.reset}`,
-              );
-              writePrompt();
-            }
-          }, 120);
+        } else if (args[0] === "--version" || args[0] === "-v") {
+          this.writeln("10.2.4");
+        } else if (args[0] === "ls") {
+          this.writeln(
+            "codeveda@13.0.0\n├── react@19.0.0\n├── zustand@5.0.0\n└── tailwindcss@3.4.0",
+          );
+        } else if (args[0] === "install" || args[0] === "i") {
+          this.writeln(
+            "\nnpm warn: Running in browser simulation mode\n⠋ Resolving packages...",
+          );
+          setTimeout(() => {
+            this.writeln(`✓ Added ${args[1] || "1247 packages"} in 3.2s`);
+            this.prompt();
+          }, 1500);
           return;
         } else if (args[0] === "run") {
           const script = args[1] || "";
-          if (script === "dev") {
-            term.writeln(`\r\n${ANSI.gray}> codeveda@12.0.0 dev${ANSI.reset}`);
-            term.writeln(`${ANSI.gray}> vite${ANSI.reset}\r\n`);
+          const outputs: Record<string, string> = {
+            dev: "VITE v5.4.1  ready in 842 ms\n\n  ➜  Local:   http://localhost:5173/\n  ➜  Network: http://192.168.1.100:5173/",
+            build:
+              "vite v5.4.1 building for production...\n✓ 1847 modules transformed.\n✓ built in 4.28s",
+            lint: "✓ 0 lint errors found.",
+            typecheck: "✓ No TypeScript errors found.",
+          };
+          if (outputs[script]) {
             setTimeout(() => {
-              term.writeln(
-                `  ${ANSI.green}VITE v5.4.1  ready in 842 ms${ANSI.reset}\r\n`,
-              );
-              term.writeln(
-                `  ${ANSI.green}➜${ANSI.reset}  ${ANSI.bold}Local:${ANSI.reset}   ${ANSI.cyan}http://localhost:5173/${ANSI.reset}`,
-              );
-              term.writeln(
-                `  ${ANSI.green}➜${ANSI.reset}  ${ANSI.bold}Network:${ANSI.reset} ${ANSI.cyan}http://192.168.1.100:5173/${ANSI.reset}`,
-              );
-              term.writeln(
-                `  ${ANSI.green}➜${ANSI.reset}  ${ANSI.bold}press h + enter to show help${ANSI.reset}`,
-              );
-              writePrompt();
-            }, 900);
-            return;
-          }
-          if (script === "build") {
-            term.writeln(
-              `\r\n${ANSI.gray}> codeveda@12.0.0 build${ANSI.reset}`,
-            );
-            term.writeln(`${ANSI.gray}> tsc && vite build${ANSI.reset}\r\n`);
-            setTimeout(() => {
-              term.writeln(
-                `${ANSI.cyan}vite v5.4.1 building for production...${ANSI.reset}`,
-              );
-              setTimeout(() => {
-                term.writeln("✓ 1847 modules transformed.");
-                term.writeln(
-                  `${ANSI.gray}dist/index.html          2.31 kB│gzip: 0.90 kB${ANSI.reset}`,
-                );
-                term.writeln(
-                  `${ANSI.gray}dist/assets/index.css   89.42 kB│gzip: 14.2 kB${ANSI.reset}`,
-                );
-                term.writeln(
-                  `${ANSI.gray}dist/assets/index.js  2847.18 kB│gzip: 748.3 kB${ANSI.reset}`,
-                );
-                term.writeln(`\r\n${ANSI.green}✓ built in 4.28s${ANSI.reset}`);
-                writePrompt();
-              }, 1200);
-            }, 300);
-            return;
-          }
-          if (script === "lint") {
-            term.writeln(`\r\n${ANSI.gray}> codeveda@12.0.0 lint${ANSI.reset}`);
-            setTimeout(() => {
-              term.writeln(`${ANSI.green}✓ 0 lint errors found.${ANSI.reset}`);
-              writePrompt();
+              this.writeln(`\n> codeveda@13.0.0 ${script}\n`);
+              this.writeln(outputs[script]);
+              this.prompt();
             }, 600);
             return;
           }
-          if (script === "typecheck") {
-            term.writeln(`\r\n${ANSI.gray}> tsc --noEmit${ANSI.reset}`);
-            setTimeout(() => {
-              term.writeln(
-                `${ANSI.green}✓ No TypeScript errors found.${ANSI.reset}`,
-              );
-              writePrompt();
-            }, 800);
-            return;
-          }
-          term.writeln(
-            `\r\n${ANSI.red}npm error Missing script: "${script}"${ANSI.reset}`,
-          );
-          term.writeln(
-            `${ANSI.gray}Available scripts: dev, build, preview, lint, typecheck${ANSI.reset}`,
-          );
+          this.writeln(`npm error Missing script: "${script}"`);
         } else {
-          term.writeln(
-            `\r\n${ANSI.red}Unknown npm command: ${args[0]}${ANSI.reset}`,
-          );
+          this.writeln(`Unknown npm command: ${args[0]}`);
         }
         break;
-
       case "npx": {
         const pkg2 = args[0];
         if (!pkg2) {
-          term.writeln(`\r\n${ANSI.red}npx: missing package name${ANSI.reset}`);
+          this.writeln("npx: missing package name");
         } else {
-          term.writeln(`\r\n${ANSI.cyan}npx: Running ${pkg2}...${ANSI.reset}`);
+          this.writeln(`npx: Running ${pkg2}...`);
           setTimeout(() => {
-            term.writeln(`${ANSI.green}✓ Done.${ANSI.reset}`);
-            writePrompt();
+            this.writeln("✓ Done.");
+            this.prompt();
           }, 800);
           return;
         }
         break;
       }
-
       case "git": {
         const sub = args[0];
-        if (!sub || sub === "--help") {
-          term.writeln(
-            `\r\n${ANSI.cyan}usage: git${ANSI.reset} <command> [<args>]\n`,
+        if (!sub) {
+          this.writeln(
+            "usage: git <command> [<args>]\n\nCommon commands: status, log, diff, branch, checkout, add, commit, push, pull, clone, stash",
           );
-          term.writeln("Common commands:");
-          term.writeln("  status     Show working tree status");
-          term.writeln("  log        Show commit history");
-          term.writeln("  diff       Show changes");
-          term.writeln("  branch     List/create/delete branches");
-          term.writeln("  checkout   Switch branches");
-          term.writeln("  add        Stage changes");
-          term.writeln("  commit     Record changes");
-          term.writeln("  push       Upload local commits");
-          term.writeln("  pull       Fetch and merge");
-          term.writeln("  clone      Clone a repository");
-          term.writeln("  stash      Stash changes");
         } else if (sub === "status") {
-          term.writeln(`\r\nOn branch ${ANSI.green}main${ANSI.reset}`);
-          term.writeln(
-            `Your branch is up to date with '${ANSI.cyan}origin/main${ANSI.reset}'.\r\n`,
-          );
-          term.writeln("Changes not staged for commit:");
-          term.writeln(
-            `  ${ANSI.red}modified:   src/components/InteractiveTerminal.tsx${ANSI.reset}`,
-          );
-          term.writeln(
-            `  ${ANSI.red}modified:   src/stores/editorStore.ts${ANSI.reset}`,
-          );
-          term.writeln(`\r\n${ANSI.yellow}Untracked files:${ANSI.reset}`);
-          term.writeln(
-            `  ${ANSI.red}src/features/ai/scaffoldStore.ts${ANSI.reset}`,
+          this.writeln(
+            "On branch main\nYour branch is up to date with 'origin/main'.\n\nChanges not staged for commit:\n  modified:   src/components/ActivityBar.tsx\n  modified:   src/App.tsx",
           );
         } else if (sub === "log") {
           const commits = [
             {
               sha: "a1b2c3d",
-              msg: "feat: add AI debug mode and inline completions",
-              author: "user",
-              time: "2 hours ago",
+              msg: "feat: add 15 IntelliJ IDEA features",
+              time: "1 hour ago",
             },
             {
               sha: "e4f5g6h",
               msg: "feat: collaboration panel with live presence",
-              author: "user",
               time: "1 day ago",
             },
             {
               sha: "i7j8k9l",
               msg: "fix: file explorer click loads content",
-              author: "user",
               time: "2 days ago",
             },
-            {
-              sha: "m1n2o3p",
-              msg: "feat: CI/CD pipeline with visual stages",
-              author: "user",
-              time: "3 days ago",
-            },
-            {
-              sha: "q4r5s6t",
-              msg: "feat: social coding follow/unfollow",
-              author: "user",
-              time: "4 days ago",
-            },
           ];
-          term.writeln("");
+          this.writeln("");
           for (const c of commits) {
-            term.writeln(`${ANSI.yellow}commit ${c.sha}${ANSI.reset}`);
-            term.writeln(`Author: ${c.author}`);
-            term.writeln(`Date:   ${c.time}\r\n`);
-            term.writeln(`    ${c.msg}\r\n`);
+            this.writeln(`commit ${c.sha}`);
+            this.writeln("Author: user");
+            this.writeln(`Date:   ${c.time}\n`);
+            this.writeln(`    ${c.msg}\n`);
           }
-        } else if (sub === "diff") {
-          term.writeln(
-            `\r\n${ANSI.yellow}diff --git a/src/components/InteractiveTerminal.tsx b/src/components/InteractiveTerminal.tsx${ANSI.reset}`,
-          );
-          term.writeln(
-            `${ANSI.gray}index a1b2c3d..e4f5g6h 100644${ANSI.reset}`,
-          );
-          term.writeln(
-            `${ANSI.red}--- a/src/components/InteractiveTerminal.tsx${ANSI.reset}`,
-          );
-          term.writeln(
-            `${ANSI.green}+++ b/src/components/InteractiveTerminal.tsx${ANSI.reset}`,
-          );
-          term.writeln(`${ANSI.cyan}@@ -1,5 +1,8 @@${ANSI.reset}`);
-          term.writeln(
-            `${ANSI.green}+ // Enhanced terminal with proper xterm.js integration${ANSI.reset}`,
-          );
-          term.writeln(
-            `${ANSI.green}+ import { Terminal } from "@xterm/xterm";${ANSI.reset}`,
-          );
-          term.writeln(`  import React from "react";`);
         } else if (sub === "branch") {
-          term.writeln(`\r\n${ANSI.green}* main${ANSI.reset}`);
-          term.writeln("  feature/ai-debug-mode");
-          term.writeln("  feature/collaboration");
-          term.writeln("  fix/terminal-init");
-        } else if (sub === "checkout") {
-          const branch = args[1];
-          if (branch) {
-            term.writeln(
-              `\r\n${ANSI.green}Switched to branch '${branch}'${ANSI.reset}`,
-            );
-          } else {
-            term.writeln(
-              `\r\n${ANSI.red}error: no branch specified${ANSI.reset}`,
-            );
-          }
+          this.writeln(
+            "* main\n  feature/intellij-features\n  feature/collaboration",
+          );
+        } else if (sub === "diff") {
+          this.writeln(
+            "diff --git a/src/App.tsx b/src/App.tsx\n--- a/src/App.tsx\n+++ b/src/App.tsx\n@@ -1,5 +1,8 @@\n+ // IntelliJ features added",
+          );
         } else if (sub === "add") {
-          const target = args[1] || ".";
-          term.writeln(`\r\n${ANSI.green}Staged: ${target}${ANSI.reset}`);
+          this.writeln(`Staged: ${args[1] || "."}`);
         } else if (sub === "commit") {
           const msgIdx = args.indexOf("-m");
           const msg =
@@ -718,337 +407,251 @@ function startMockShell(term: Terminal) {
                   .replace(/"/g, "")
               : "";
           if (!msg) {
-            term.writeln(
-              `\r\n${ANSI.red}Aborting commit due to empty commit message.${ANSI.reset}`,
-            );
+            this.writeln("Aborting commit due to empty commit message.");
           } else {
-            term.writeln(
-              `\r\n[main ${Math.random().toString(36).slice(2, 9)}] ${msg}`,
+            this.writeln(
+              `[main ${Math.random().toString(36).slice(2, 9)}] ${msg}`,
             );
-            term.writeln(
+            this.writeln(
               ` 1 file changed, ${Math.floor(Math.random() * 20) + 1} insertions(+)`,
             );
           }
         } else if (sub === "push") {
-          term.writeln(
-            `\r\n${ANSI.gray}Enumerating objects: 5, done.${ANSI.reset}`,
-          );
-          term.writeln(
-            `${ANSI.gray}Counting objects: 100% (5/5), done.${ANSI.reset}`,
-          );
           setTimeout(() => {
-            term.writeln(
-              `${ANSI.gray}Writing objects: 100% (3/3), 1.23 KiB | 1.23 MiB/s, done.${ANSI.reset}`,
+            this.writeln(
+              "Enumerating objects: 5, done.\nCounting objects: 100% (5/5), done.",
             );
-            term.writeln(
-              `${ANSI.green}To github.com:user/codeveda.git${ANSI.reset}`,
+            this.writeln(
+              "To github.com:user/codeveda.git\n   a1b2c3d..e4f5g6h  main -> main",
             );
-            term.writeln("   a1b2c3d..e4f5g6h  main -> main");
-            writePrompt();
+            this.prompt();
           }, 600);
           return;
         } else if (sub === "pull") {
-          term.writeln(
-            `\r\n${ANSI.gray}remote: Enumerating objects: 3, done.${ANSI.reset}`,
-          );
           setTimeout(() => {
-            term.writeln(`${ANSI.green}Already up to date.${ANSI.reset}`);
-            writePrompt();
-          }, 500);
+            this.writeln("Already up to date.");
+            this.prompt();
+          }, 400);
+          return;
+        } else if (sub === "clone") {
+          const url = args[1] || "<repo>";
+          setTimeout(() => {
+            this.writeln(
+              `Cloning into '${url.split("/").pop()?.replace(".git", "")}'...`,
+            );
+            this.writeln(
+              "Receiving objects: 100%, done.\n✓ Cloned successfully.",
+            );
+            this.prompt();
+          }, 900);
           return;
         } else if (sub === "stash") {
-          term.writeln(
-            `\r\n${ANSI.yellow}Saved working directory and index state WIP on main: a1b2c3d${ANSI.reset}`,
-          );
-        } else if (sub === "clone") {
-          const repoUrl = args[1] || "<repository>";
-          term.writeln(
-            `\r\n${ANSI.cyan}Cloning into '${repoUrl.split("/").pop()?.replace(".git", "")}'...${ANSI.reset}`,
-          );
-          setTimeout(() => {
-            term.writeln("remote: Enumerating objects: 100, done.");
-            term.writeln("remote: Total 100 (delta 0), reused 0 (delta 0)");
-            term.writeln(
-              "Receiving objects: 100% (100/100), 512.00 KiB | 2.00 MiB/s, done.",
-            );
-            term.writeln(`${ANSI.green}✓ Cloned successfully.${ANSI.reset}`);
-            writePrompt();
-          }, 1000);
-          return;
+          this.writeln("Saved working directory and index state WIP on main.");
+        } else if (sub === "checkout") {
+          if (args[1]) this.writeln(`Switched to branch '${args[1]}'`);
+          else this.writeln("error: no branch specified");
         } else {
-          term.writeln(
-            `\r\n${ANSI.red}git: '${sub}' is not a git command. See 'git --help'.${ANSI.reset}`,
-          );
+          this.writeln(`git: '${sub}' is not a git command. See 'git --help'.`);
         }
         break;
       }
-
+      case "ping":
+        if (args[0]) {
+          this.writeln(`PING ${args[0]} (127.0.0.1): 56 data bytes`);
+          let count = 0;
+          const iv = setInterval(() => {
+            const ms = (Math.random() * 10 + 1).toFixed(3);
+            this.write(`64 bytes: icmp_seq=${count} time=${ms} ms\n`);
+            count++;
+            if (count >= 4) {
+              clearInterval(iv);
+              this.writeln(`\n--- ${args[0]} ping statistics ---`);
+              this.writeln("4 packets transmitted, 4 received, 0% packet loss");
+              this.prompt();
+            }
+          }, 400);
+          return;
+        }
+        break;
       default:
-        term.writeln(
-          `\r\n${ANSI.red}bash: ${command}: command not found${ANSI.reset}`,
-        );
-        term.writeln(
-          `${ANSI.gray}Type 'help' for available commands${ANSI.reset}`,
-        );
+        this.writeln(`bash: ${command}: command not found`);
+        this.writeln("Type 'help' for available commands");
     }
 
-    writePrompt();
-  };
+    this.prompt();
+  }
 
-  // Welcome banner
-  term.writeln(
-    `${ANSI.cyan}${ANSI.bold}CodeVeda Terminal${ANSI.reset} ${ANSI.gray}v12.0 — Shell Emulator${ANSI.reset}`,
-  );
-  term.writeln(
-    `${ANSI.gray}WebContainers unavailable (requires Cross-Origin-Isolation headers).${ANSI.reset}`,
-  );
-  term.writeln(
-    `${ANSI.gray}Type ${ANSI.reset}${ANSI.yellow}help${ANSI.reset}${ANSI.gray} for available commands.${ANSI.reset}`,
-  );
-  writePrompt();
-
-  // Input handler with arrow key history support
-  term.onData((data) => {
-    if (data === "\r") {
-      term.write("\r\n");
-      processCommand(buffer);
-      buffer = "";
-    } else if (data === "\x7f" || data === "\b") {
-      if (buffer.length > 0) {
-        buffer = buffer.slice(0, -1);
-        term.write("\b \b");
-      }
-    } else if (data === "\x0c") {
-      term.clear();
-      buffer = "";
-    } else if (data === "\x1b[A") {
-      // Arrow up — history
-      if (cmdHistory.length > 0) {
-        historyIndex = Math.min(historyIndex + 1, cmdHistory.length - 1);
-        const prev = cmdHistory[historyIndex] ?? "";
-        term.write("\r\x1b[K");
-        const dirName =
-          cwd === "/workspace" ? "workspace" : cwd.split("/").pop();
-        term.write(
-          `${ANSI.green}user${ANSI.reset}:${ANSI.blue}${dirName}${ANSI.reset}${ANSI.bold}$${ANSI.reset} ${prev}`,
-        );
-        buffer = prev;
-      }
-    } else if (data === "\x1b[B") {
-      // Arrow down — history
-      historyIndex = Math.max(historyIndex - 1, -1);
-      const next = historyIndex >= 0 ? cmdHistory[historyIndex] : "";
-      term.write("\r\x1b[K");
-      const dirName2 =
-        cwd === "/workspace" ? "workspace" : cwd.split("/").pop();
-      term.write(
-        `${ANSI.green}user${ANSI.reset}:${ANSI.blue}${dirName2}${ANSI.reset}${ANSI.bold}$${ANSI.reset} ${next ?? ""}`,
-      );
-      buffer = next ?? "";
-    } else if (data >= " ") {
-      buffer += data;
-      term.write(data);
-    }
-  });
+  banner() {
+    this.writeln("CodeVeda Terminal v13.0 — Shell Emulator");
+    this.writeln("Type 'help' for available commands.\n");
+    this.prompt();
+  }
 }
 
-// ──────────────────────────────────────────────
-// Main component
-// ──────────────────────────────────────────────
 export const InteractiveTerminal: React.FC = () => {
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const termRef = useRef<Terminal | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
-  const [_wcReady, setWcReady] = useState(false);
-  const [status, setStatus] = useState<"booting" | "webcontainer" | "shell">(
-    "booting",
-  );
+  const [outputLines, setOutputLines] = useState<string[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [cmdHistory, setCmdHistory] = useState<string[]>([]);
+  const outputRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const termRef = useRef<SimpleTerminal | null>(null);
+
+  const scrollToBottom = useCallback(() => {
+    if (outputRef.current) {
+      outputRef.current.scrollTop = outputRef.current.scrollHeight;
+    }
+  }, []);
 
   const handleClear = useCallback(() => {
-    termRef.current?.clear();
+    if (termRef.current) termRef.current.clear();
   }, []);
 
   useEffect(() => {
-    if (!terminalRef.current) return;
-    let disposed = false;
-
-    const term = new Terminal({
-      theme: {
-        background: "#1e1e1e",
-        foreground: "#d4d4d4",
-        cursor: "#d4d4d4",
-        selectionBackground: "#264f78",
-        black: "#000000",
-        red: "#cd3131",
-        green: "#0dbc79",
-        yellow: "#e5e510",
-        blue: "#2472c8",
-        magenta: "#bc3fbc",
-        cyan: "#11a8cd",
-        white: "#e5e5e5",
-        brightBlack: "#666666",
-        brightRed: "#f14c4c",
-        brightGreen: "#23d18b",
-        brightYellow: "#f5f543",
-        brightBlue: "#3b8eea",
-        brightMagenta: "#d670d6",
-        brightCyan: "#29b8db",
-        brightWhite: "#e5e5e5",
-      },
-      fontFamily:
-        '"Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace',
-      fontSize: 13,
-      lineHeight: 1.4,
-      cursorBlink: true,
-      allowTransparency: true,
-      convertEol: true,
-      scrollback: 5000,
-    });
-
+    const term = new SimpleTerminal((lines) => setOutputLines(lines));
     termRef.current = term;
+    term.banner();
+    setTimeout(scrollToBottom, 100);
+  }, [scrollToBottom]);
 
-    const fitAddon = new FitAddon();
-    fitAddonRef.current = fitAddon;
-    term.loadAddon(fitAddon);
-    term.loadAddon(new WebLinksAddon());
-    term.open(terminalRef.current);
-
-    // Fit after a short delay to ensure DOM is ready
-    const fitTimer = setTimeout(() => {
-      try {
-        fitAddon.fit();
-      } catch (_) {
-        /* ignore */
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!termRef.current) return;
+    const cmd = inputValue;
+    // Echo the command into output
+    setOutputLines((prev) => {
+      const updated = [...prev];
+      if (updated.length > 0) {
+        updated[updated.length - 1] += cmd;
       }
-    }, 50);
-
-    const resizeObserver = new ResizeObserver(() => {
-      requestAnimationFrame(() => {
-        try {
-          fitAddon.fit();
-        } catch (_) {
-          /* ignore */
-        }
-      });
+      return updated;
     });
-
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
+    if (cmd.trim()) {
+      setCmdHistory((prev) => [cmd, ...prev]);
     }
+    setHistoryIndex(-1);
+    setInputValue("");
+    termRef.current.processCommand(cmd);
+    setTimeout(scrollToBottom, 50);
+  };
 
-    async function tryWebContainer() {
-      try {
-        term.writeln("\r\n\x1b[36mBooting WebContainer environment...\x1b[0m");
-
-        // Dynamic import to avoid build errors if COOP/COEP headers aren't available
-        const { WebContainer } = await import("@webcontainer/api");
-        const wc = await WebContainer.boot();
-        if (disposed) return;
-
-        const { fileTree } = useFilesystemStore.getState();
-        const fsMount = buildWebContainerFS(fileTree);
-        await wc.mount(fsMount);
-
-        term.writeln(
-          "\x1b[32m✓ WebContainer ready! Real Node.js terminal active.\x1b[0m",
-        );
-        term.writeln(
-          "\x1b[90mYour project files have been mounted.\x1b[0m\r\n",
-        );
-
-        setWcReady(true);
-        setStatus("webcontainer");
-
-        const shell = await wc.spawn("jsh", {
-          terminal: { cols: term.cols, rows: term.rows },
-        });
-
-        shell.output.pipeTo(
-          new WritableStream({
-            write(data) {
-              term.write(data);
-            },
-          }),
-        );
-
-        const input = shell.input.getWriter();
-        term.onData((data) => input.write(data));
-        term.onResize(({ cols, rows }) => {
-          try {
-            shell.resize({ cols, rows });
-          } catch (_) {
-            /* ignore */
-          }
-        });
-      } catch (err) {
-        if (disposed) return;
-        const errMsg = (err as Error).message?.slice(0, 100) ?? "Unknown error";
-        term.writeln(
-          `\r\n\x1b[33m⚠ WebContainer unavailable:\x1b[0m \x1b[90m${errMsg}\x1b[0m`,
-        );
-        term.writeln(
-          "\x1b[36mFalling back to enhanced shell emulator...\x1b[0m\r\n",
-        );
-        setStatus("shell");
-        startMockShell(term);
-      }
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const newIdx = Math.min(historyIndex + 1, cmdHistory.length - 1);
+      setHistoryIndex(newIdx);
+      setInputValue(cmdHistory[newIdx] ?? "");
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const newIdx = Math.max(historyIndex - 1, -1);
+      setHistoryIndex(newIdx);
+      setInputValue(newIdx >= 0 ? cmdHistory[newIdx] : "");
+    } else if (e.key === "l" && e.ctrlKey) {
+      e.preventDefault();
+      handleClear();
     }
+  };
 
-    tryWebContainer();
+  const getCwd = () => {
+    // Extract cwd from last prompt line
+    const lastPrompt = [...outputLines].reverse().find((l) => l.includes("$ "));
+    if (lastPrompt) {
+      const m = lastPrompt.match(/user:(\S+)\$/);
+      if (m) return m[1];
+    }
+    return "workspace";
+  };
 
-    return () => {
-      disposed = true;
-      clearTimeout(fitTimer);
-      resizeObserver.disconnect();
-      term.dispose();
-    };
-  }, []);
+  const renderLine = (line: string) => {
+    // Simple ANSI stripping for display
+    return stripAnsi(line);
+  };
 
   return (
-    <div className="flex flex-col h-full bg-[#1e1e1e]">
+    <div className="flex flex-col h-full" style={{ background: "#1e1e1e" }}>
       {/* Terminal header */}
-      <div className="flex items-center px-3 py-1.5 border-b border-[#333] bg-[#252526] flex-shrink-0 gap-2">
-        <span className="text-[11px] font-semibold text-[#cccccc] uppercase tracking-wider">
+      <div
+        className="flex items-center px-3 py-1.5 border-b flex-shrink-0 gap-2"
+        style={{ background: "#252526", borderColor: "#333" }}
+      >
+        <span
+          className="text-[11px] font-semibold uppercase tracking-wider"
+          style={{ color: "#ccc" }}
+        >
           Terminal
         </span>
-        <span className="text-[10px] ml-1">
-          {status === "booting" && (
-            <span className="text-[#e5e510] animate-pulse">● Booting...</span>
-          )}
-          {status === "webcontainer" && (
-            <span className="text-[#0dbc79]">
-              ● WebContainer (Real Node.js)
-            </span>
-          )}
-          {status === "shell" && (
-            <span className="text-[#858585]">○ Shell Emulator</span>
-          )}
+        <span className="text-[10px]" style={{ color: "#858585" }}>
+          ○ Shell Emulator
         </span>
         <div className="ml-auto flex gap-1 items-center">
           <button
             type="button"
             onClick={handleClear}
-            title="Clear Terminal (Ctrl+L)"
-            className="px-2 py-0.5 text-[11px] text-[#858585] hover:text-white rounded hover:bg-[#3a3a3a] transition-colors font-mono"
+            className="px-2 py-0.5 text-[11px] rounded hover:bg-[#3a3a3a] transition-colors font-mono"
+            style={{ color: "#858585" }}
           >
             clear
           </button>
-          <button
-            type="button"
-            onClick={() => termRef.current?.dispose()}
-            title="Close Terminal"
-            className="p-1 text-[#858585] hover:text-white rounded hover:bg-[#3a3a3a] transition-colors text-sm leading-none"
-            data-ocid="terminal.button"
-          >
-            ×
-          </button>
         </div>
       </div>
-      {/* Terminal body */}
-      <div ref={containerRef} className="flex-1 overflow-hidden p-1">
-        <div ref={terminalRef} className="h-full w-full" />
+
+      {/* Output area */}
+      <div
+        ref={outputRef}
+        className="flex-1 overflow-y-auto p-2 font-mono text-[12px] leading-[1.5]"
+        style={{
+          color: "#d4d4d4",
+          fontFamily: '"JetBrains Mono", Consolas, "Courier New", monospace',
+        }}
+        onClick={() => inputRef.current?.focus()}
+        onKeyDown={() => {}}
+      >
+        {outputLines.map((line, i) => {
+          const text = renderLine(line);
+          const isPrompt = text.includes("$ ") && !text.includes("# ");
+          return (
+            <span
+              key={`line-${i}-${line.slice(0, 8)}`}
+              style={{
+                color: isPrompt ? "#0dbc79" : "#d4d4d4",
+                display: "inline",
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {text}
+            </span>
+          );
+        })}
       </div>
+
+      {/* Input area */}
+      <form
+        onSubmit={handleSubmit}
+        className="flex items-center px-2 py-1 border-t flex-shrink-0"
+        style={{ background: "#1e1e1e", borderColor: "#333" }}
+      >
+        <span
+          className="text-[11px] font-mono mr-1 flex-shrink-0"
+          style={{ color: "#0dbc79" }}
+        >
+          user:{getCwd()}$
+        </span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="flex-1 bg-transparent outline-none text-[12px] font-mono"
+          style={{
+            color: "#d4d4d4",
+            fontFamily: '"JetBrains Mono", Consolas, "Courier New", monospace',
+          }}
+          autoComplete="off"
+          spellCheck={false}
+          data-ocid="terminal.input"
+        />
+      </form>
     </div>
   );
 };

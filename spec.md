@@ -1,97 +1,74 @@
-# CodeVeda — Phase 10: Profile & Settings Overhaul + Social/GitHub Integration
+# CodeVeda
 
 ## Current State
-
-- `WelcomeTab.tsx` has a footer with the line: `© {year}. Built with ❤ using caffeine.ai` (lines 405–414)
-- `UserProfilePanel.tsx` has 3 tabs (overview, preferences, activity). Overview: name, bio, avatar color, save. Preferences: language, font size, theme, shortcuts. Activity: log list.
-- `SettingsPanel.tsx` has 2 tabs (editor, keybindings). Editor: themes, font size/family, tab size, toggles (wordWrap, minimap, lineNumbers, fontLigatures). Keybindings: searchable shortcut list.
-- `SocialCodingPanel.tsx` has Discover / Following / My Projects tabs with follow/unfollow logic and a share-project form with public/private visibility.
-- No profile picture / avatar image upload support.
-- No GitHub projects section in user profile.
-- No dedicated social links section in profile.
-- Settings panel has only 2 tabs and lacks many advanced options.
+CodeVeda is a full-stack cloud IDE (v13+) built with React + TypeScript frontend and Motoko ICP backend. It features:
+- Monaco Editor with multi-tab, split editor, breadcrumbs, themes (8 total)
+- File explorer with real File System Access API
+- AI Assistant panel: ChatGPT-style multi-session threads, voice input, streaming responses, insert-to-editor, modes (unit test, JSDoc, code review, architecture)
+- GitHub Panel: overview, commits timeline, issues, diff viewer, AI PR review
+- Git Panel: staging, commit, push
+- Collaboration Panel: live sessions (simulated), invite links, colored avatars, activity feed
+- Social Coding Panel: discover, follow/unfollow, project sharing
+- CI/CD Panel: visual pipeline, deployment history, config editor
+- Version Control UI: visual commit graph, branching, stashing, cherry-pick
+- Extensions Marketplace, Snippets Library, Live Preview
+- Terminal: xterm.js + WebContainers shell emulator with 20+ commands
+- Backend persistence: ICP canisters for profile, snippets, settings, bookmarks, notes, files
+- Settings Panel: editor, appearance, privacy, notifications, keys
+- User Profile Panel: overview, GitHub repos, social follow/unfollow, prefs, activity
+- Admin Dashboard with Shield icon
+- Status bar: Pomodoro timer, font controls, file stats, multi-cursor hint
+- Editor toolbar: word wrap, minimap, sticky scroll, bracket colorization
+- Tab context menu: pin/unpin, color tags, close options
+- Diff Viewer, Zen Mode, File Templates, Find in Files with Replace
+- Mobile-first: bottom nav, slide-in drawers, touch toolbar, compact header
 
 ## Requested Changes (Diff)
 
 ### Add
+15 IntelliJ IDEA-inspired features on top of existing functionality:
 
-**WelcomeTab:**
-- Remove the entire `Built with ❤ using caffeine.ai` paragraph (keep the CodeVeda version line)
-
-**UserProfilePanel — expanded to 5 tabs:**
-1. **Overview** (existing + enhancements):
-   - Profile picture upload: circular avatar that shows uploaded image OR initials fallback. Click to open file picker (accept image/*). Preview immediately, store as data-URL in state.
-   - Cover/banner color picker (6 color options) — decorative gradient header band above the avatar
-   - Username / handle field (e.g. @aryan_dev) — separate from display name
-   - Location field (text input)
-   - Website URL field
-   - Social links section: GitHub URL, Twitter/X URL, LinkedIn URL — each with icon + input
-   - Save Profile button persists all these fields
-
-2. **GitHub Projects tab** (new):
-   - GitHub username input (pre-filled if set in overview)
-   - "Connect GitHub" button that fetches repos via GitHub public API (`https://api.github.com/users/{username}/repos`)
-   - List of repos: name, description, language dot, stars, forks, visibility badge (Public/Private via lock icon)
-   - Toggle visibility: user can mark any repo as "featured" (pinned to profile)
-   - Empty state if no GitHub username set
-
-3. **Followers/Following tab** (new):
-   - Two sub-tabs: Followers | Following
-   - List of mock follower/following developer cards (same style as SocialCodingPanel)
-   - Follow/Unfollow button on each card
-   - Follower count + Following count summary at top
-
-4. **Preferences** (existing, keep as-is)
-
-5. **Activity** (existing, keep as-is)
-
-**SettingsPanel — expanded from 2 tabs to 5 tabs:**
-1. **Editor** (existing — keep all current options)
-2. **Appearance** (new tab):
-   - UI Density: Compact / Default / Comfortable (3-way toggle)
-   - Sidebar position: Left / Right toggle
-   - Activity bar labels: Show/Hide toggle
-   - Editor cursor style: Block / Line / Underline selector
-   - Smooth scrolling: toggle
-   - Animations: toggle (reduce motion)
-   - Custom accent color: 6 preset color swatches + hex input
-3. **Privacy & Security** (new tab):
-   - Profile visibility: Public / Private toggle
-   - Show online status: toggle
-   - Show activity log to followers: toggle
-   - Two-factor auth notice (UI only, informational badge)
-   - Data export button (downloads JSON of profile as a blob)
-   - Danger zone: Delete account button (shows confirmation modal)
-4. **Notifications** (new tab):
-   - Email notifications toggle (disabled — email not available, shows tooltip)
-   - Push notifications toggle
-   - Notify on: follow (toggle), mention (toggle), PR review (toggle), CI/CD status (toggle)
-   - Notification sound: toggle
-5. **Keybindings** (existing — keep as-is)
+1. **Project-wide Search & Replace** -- Advanced find/replace dialog with regex, case-sensitive, whole word, scope (file/project/directory), match count, replace with preview
+2. **Code Structure Panel** -- Outline view showing functions, classes, methods, variables for current file (like Structure tool window). Click to navigate to symbol.
+3. **Database Tool Window** -- Mock database panel with tables, query editor, results grid (simulated), schema view
+4. **Run Configurations** -- Run/Debug configuration dialog: define run configs (npm run dev, npm build, custom scripts), save/load configs, run with green play button
+5. **Scratch Files** -- Create temporary scratch files (.js, .ts, .txt, .md) that live outside the project but persist in session, with a dedicated scratch pad in the file explorer
+6. **Live Templates (Code Snippets++)**  -- Abbreviation-based live templates: type `sfc` + Tab → expands to React SFC, `useEffect` + Tab → full hook, etc. Customizable, with a management dialog
+7. **Local History** -- Per-file local history: shows a timeline of all edits (every save/edit creates a snapshot), allows diff + restore of any version
+8. **Code Inspections Panel** -- Static analysis panel showing warnings, errors, and info hints for the current file (simulated with pattern matching), with severity levels and quick-fix suggestions
+9. **Bookmarks with Mnemonics** -- Enhanced bookmark system: assign letter/number mnemonics to bookmarks (e.g., bookmark 1, 2, A, B), jump to bookmark via shortcut, manage in a Bookmarks tool window
+10. **Split Terminal** -- Multiple terminal tabs + ability to split terminal horizontally/vertically, each with its own shell session
+11. **Presentation Mode** -- Toggle presentation mode: increases font size to 24pt, hides UI chrome, shows large readable code for presentations/demos
+12. **Code Coverage Visualization** -- Inline code coverage gutter: green/red/gray line markers showing covered/uncovered/not-applicable lines (simulated data)
+13. **TODO Tool Window** -- Enhanced TODO/FIXME tracker that scans all open files for TODO/FIXME/HACK comments, groups by file, clickable to navigate
+14. **Smart Clipboard / Clipboard History** -- Clipboard history manager: stores last 10 copied items, paste from history via Ctrl+Shift+V panel, clear individual items
+15. **Variable/Method Rename Refactoring** -- Rename refactoring: double-click a symbol → inline rename input that highlights all occurrences in the file, confirms with Enter
 
 ### Modify
-
-- `UserProfilePanel`: replace 3-tab layout with 5-tab layout (Overview, GitHub Projects, Followers/Following, Preferences, Activity). The panel width can expand slightly to `min(100vw, 540px)` to accommodate more content.
-- `SettingsPanel`: replace 2-tab layout with 5-tab layout. Keep existing editor and keybindings tabs. Add Appearance, Privacy & Security, Notifications tabs.
-- `SocialCodingPanel`: no changes needed here (profile follow flow already exists); the new Followers/Following tab in UserProfilePanel mirrors this.
+- Activity bar: add new icons for Structure panel, Database, Run Configs, Local History, Code Inspections
+- Status bar: add coverage indicator, presentation mode indicator
+- Command palette: include new panel commands
+- Settings: add Inspections tab and Live Templates management
 
 ### Remove
-
-- The `Built with ❤ using caffeine.ai` paragraph block from `WelcomeTab.tsx` (lines ~405–414). Keep the CodeVeda version line above it.
+- Nothing removed
 
 ## Implementation Plan
-
-1. **WelcomeTab.tsx** — remove the caffeine.ai attribution paragraph (3 lines of JSX). Keep `CodeVeda IDE v4.0 — Built with React 19 + Monaco Editor + ICP`.
-2. **UserProfilePanel.tsx** — full rewrite of the tab list and tab content:
-   - Change `activeTab` type to include `'github' | 'social'`
-   - Add state: `profilePicUrl`, `username`, `location`, `websiteUrl`, `githubUrl`, `twitterUrl`, `linkedinUrl`, `githubUsername`, `githubRepos`, `isFetchingRepos`
-   - Overview tab: add picture upload (file input, preview), handle/username field, location, website, social links
-   - GitHub Projects tab: input + fetch button + repo list with Public/Private badges
-   - Followers/Following tab: mock data (reuse DEVELOPERS from SocialCodingPanel style), sub-tab switcher, follow/unfollow
-   - Preserve Preferences and Activity tabs unchanged
-3. **SettingsPanel.tsx** — extend tab system:
-   - Change `activeTab` type to `'editor' | 'appearance' | 'privacy' | 'notifications' | 'keybindings'`
-   - Add state for all new settings fields
-   - Add Appearance, Privacy & Security, Notifications tab content panels
-   - Preserve editor and keybindings tabs unchanged
-4. No backend changes needed — all new fields are UI state only (can be wired to backend in a future phase).
+1. Add 5 new activity bar panels: Code Structure, Database, Run Configurations, Local History, Code Inspections
+2. Implement Code Structure Panel with symbol outline from Monaco's document symbols API
+3. Implement Database Tool Window with mock tables/query UI
+4. Implement Run Configurations dialog with save/run functionality
+5. Implement Local History panel with per-file snapshot timeline and diff view
+6. Implement Code Inspections panel with pattern-based warnings/errors
+7. Implement Live Templates system with abbreviation expansion in editor
+8. Implement Scratch Files feature with dedicated section in file explorer
+9. Implement Clipboard History manager (Ctrl+Shift+V)
+10. Implement TODO Tool Window scanning open files
+11. Implement Enhanced Bookmarks with mnemonics
+12. Implement Split Terminal with multiple tabs
+13. Implement Presentation Mode toggle
+14. Implement Code Coverage gutter visualization
+15. Implement Variable Rename Refactoring overlay
+16. Wire all new panels to command palette
+17. Update activity bar with new icons
+18. Validate and build

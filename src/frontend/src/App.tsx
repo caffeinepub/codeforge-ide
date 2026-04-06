@@ -6,9 +6,11 @@ import type { ActivityTab } from "./components/ActivityBar";
 import { AdminDashboard } from "./components/AdminDashboard";
 import type { PanelTab } from "./components/BottomPanel";
 import { BottomPanel } from "./components/BottomPanel";
+import { ClipboardHistoryPanel } from "./components/ClipboardHistoryPanel";
 import { CommandPalette } from "./components/CommandPalette";
 import { FileTemplatesDialog } from "./components/FileTemplatesDialog";
 import { GitHubPanel } from "./components/GitHubPanel";
+import { LiveTemplatesManager } from "./components/LiveTemplatesManager";
 import { LoginDialog } from "./components/LoginDialog";
 import { MenuBar } from "./components/MenuBar";
 import { MobileBottomNav } from "./components/MobileBottomNav";
@@ -67,6 +69,9 @@ const ALL_SHORTCUTS = [
   { key: "Ctrl+Shift+K", action: "Delete Line" },
   { key: "Ctrl+Enter", action: "Insert Line Below" },
   { key: "F12", action: "Go to Definition" },
+  { key: "Ctrl+Shift+V", action: "Clipboard History" },
+  { key: "Ctrl+J", action: "Live Templates" },
+  { key: "Alt+F7", action: "Presentation Mode" },
 ];
 
 // Map mobile nav tabs that correspond to sidebar panels
@@ -102,6 +107,11 @@ function IDELayout() {
   const [cloudSyncStatus, _setCloudSyncStatus] = useState<
     "idle" | "syncing" | "synced" | "error"
   >("idle");
+
+  // New IntelliJ features state
+  const [isPresentationMode, setIsPresentationMode] = useState(false);
+  const [showClipboardHistory, setShowClipboardHistory] = useState(false);
+  const [showLiveTemplates, setShowLiveTemplates] = useState(false);
 
   // Mobile state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -150,6 +160,8 @@ function IDELayout() {
       if (e.key === "Escape") {
         setShortcutOverlayVisible(false);
         setZenMode(false);
+        setIsPresentationMode(false);
+        setShowClipboardHistory(false);
       }
       if (ctrl && e.key === "k") {
         e.preventDefault();
@@ -165,6 +177,21 @@ function IDELayout() {
         ctrlKPending = false;
         if (ctrlKTimer) clearTimeout(ctrlKTimer);
         setZenMode((v) => !v);
+      }
+      // Clipboard History: Ctrl+Shift+V
+      if (ctrl && e.shiftKey && e.key === "V") {
+        e.preventDefault();
+        setShowClipboardHistory((v) => !v);
+      }
+      // Live Templates: Ctrl+J
+      if (ctrl && e.key === "j") {
+        e.preventDefault();
+        setShowLiveTemplates((v) => !v);
+      }
+      // Presentation Mode: Alt+F7
+      if (e.altKey && e.key === "F7") {
+        e.preventDefault();
+        setIsPresentationMode((v) => !v);
       }
     };
     window.addEventListener("keydown", handler);
@@ -465,6 +492,14 @@ function IDELayout() {
           isOpen={fileTemplatesVisible}
           onClose={() => setFileTemplatesVisible(false)}
         />
+        <ClipboardHistoryPanel
+          isOpen={showClipboardHistory}
+          onClose={() => setShowClipboardHistory(false)}
+        />
+        <LiveTemplatesManager
+          isOpen={showLiveTemplates}
+          onClose={() => setShowLiveTemplates(false)}
+        />
       </div>
     );
   }
@@ -479,8 +514,36 @@ function IDELayout() {
         background: "var(--bg-editor)",
       }}
     >
-      {/* Zen Mode: show only editor */}
-      {zenMode ? (
+      {/* Presentation Mode */}
+      {isPresentationMode ? (
+        <div
+          className="flex flex-1 overflow-hidden relative"
+          style={{ height: "100vh" }}
+        >
+          <SplitEditor />
+          <button
+            type="button"
+            onClick={() => setIsPresentationMode(false)}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 px-5 py-2.5 rounded-full text-xs font-semibold shadow-2xl z-50 transition-all hover:scale-105"
+            style={{
+              background: "rgba(0,122,204,0.9)",
+              color: "#fff",
+              border: "1px solid rgba(97,218,251,0.4)",
+              backdropFilter: "blur(8px)",
+            }}
+            data-ocid="presentation.exit.button"
+          >
+            Exit Presentation Mode (Alt+F7 or Esc)
+          </button>
+          <div
+            className="fixed top-4 right-4 px-2 py-1 rounded text-[10px] font-bold z-50"
+            style={{ background: "rgba(0,122,204,0.8)", color: "#fff" }}
+          >
+            PRESENTATION
+          </div>
+        </div>
+      ) : zenMode ? (
+        /* Zen Mode: show only editor */
         <div
           className="flex flex-1 overflow-hidden relative"
           style={{ height: "100vh" }}
@@ -565,6 +628,9 @@ function IDELayout() {
             onOpenProfile={cmdOpenProfile}
             onOpenCloud={cmdOpenCloud}
             cloudSyncStatus={cloudSyncStatus}
+            isPresentationMode={isPresentationMode}
+            onTogglePresentationMode={() => setIsPresentationMode((v) => !v)}
+            onOpenLiveTemplates={() => setShowLiveTemplates(true)}
           />
         </>
       )}
@@ -593,6 +659,14 @@ function IDELayout() {
       <FileTemplatesDialog
         isOpen={fileTemplatesVisible}
         onClose={() => setFileTemplatesVisible(false)}
+      />
+      <ClipboardHistoryPanel
+        isOpen={showClipboardHistory}
+        onClose={() => setShowClipboardHistory(false)}
+      />
+      <LiveTemplatesManager
+        isOpen={showLiveTemplates}
+        onClose={() => setShowLiveTemplates(false)}
       />
 
       {/* Keyboard Shortcut Overlay */}

@@ -6,9 +6,11 @@ import {
   GitBranch,
   Loader2,
   LogIn,
+  Monitor,
   Mouse,
   Timer,
   User,
+  Zap,
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
@@ -28,6 +30,9 @@ interface StatusBarProps {
   onOpenProfile?: () => void;
   onOpenCloud?: () => void;
   cloudSyncStatus?: "idle" | "syncing" | "synced" | "error";
+  isPresentationMode?: boolean;
+  onTogglePresentationMode?: () => void;
+  onOpenLiveTemplates?: () => void;
 }
 
 function formatTime(seconds: number): string {
@@ -43,6 +48,9 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   onOpenProfile,
   onOpenCloud,
   cloudSyncStatus = "idle",
+  isPresentationMode = false,
+  onTogglePresentationMode,
+  onOpenLiveTemplates,
 }) => {
   const { openFiles, activeFileId } = useEditorStore();
   const { theme } = useThemeStore();
@@ -236,6 +244,16 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             </span>
           </span>
         )}
+
+        {/* Presentation Mode badge */}
+        {isPresentationMode && !isMobile && (
+          <span
+            className="px-1.5 py-0.5 rounded text-[10px] font-bold animate-pulse"
+            style={{ background: "var(--accent)", color: "#fff" }}
+          >
+            PRESENTATION
+          </span>
+        )}
       </div>
 
       {/* Right */}
@@ -332,6 +350,39 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             data-ocid="statusbar.toggle"
           >
             {vimMode ? "VIM" : "INS"}
+          </button>
+        )}
+
+        {/* Live Templates shortcut */}
+        {!isMobile && onOpenLiveTemplates && (
+          <button
+            type="button"
+            onClick={onOpenLiveTemplates}
+            className="flex items-center gap-0.5 hover:bg-white/10 px-1.5 py-0.5 rounded transition-colors"
+            style={{ color: "rgba(255,255,255,0.5)", fontSize: 10 }}
+            title="Live Templates (Ctrl+J)"
+            data-ocid="statusbar.templates.button"
+          >
+            <Zap size={9} />
+          </button>
+        )}
+
+        {/* Presentation Mode toggle */}
+        {!isMobile && onTogglePresentationMode && (
+          <button
+            type="button"
+            onClick={onTogglePresentationMode}
+            className="flex items-center gap-0.5 hover:bg-white/10 px-1.5 py-0.5 rounded transition-colors"
+            style={{
+              color: isPresentationMode
+                ? "var(--accent)"
+                : "rgba(255,255,255,0.5)",
+              fontSize: 10,
+            }}
+            title="Presentation Mode (Alt+F7)"
+            data-ocid="statusbar.presentation.toggle"
+          >
+            <Monitor size={9} />
           </button>
         )}
 
