@@ -1,6 +1,6 @@
 import type * as Monaco from "monaco-editor";
 import type React from "react";
-import { Suspense, lazy, useCallback, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { useIsMobile } from "../../hooks/use-mobile";
 import { useEditorStore } from "../../stores/editorStore";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -8,33 +8,11 @@ import { useThemeStore } from "../../stores/themeStore";
 import { getMonacoTheme } from "../theme/themeConfig";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { EditorTabs } from "./EditorTabs";
+import { MonacoEditorCDN } from "./MonacoEditorCDN";
 import { WelcomeTab } from "./WelcomeTab";
-
-// Use dynamic import bypass so Rollup doesn't statically analyze the package
-const _dynamicImport = (pkg: string): Promise<any> => {
-  // biome-ignore lint: dynamic import bypass for uninstalled packages
-  return new Function("m", "return import(m)")(pkg) as Promise<any>;
-};
-
-// Lazy Monaco editor component
-const MonacoEditorLazy = lazy(async () => {
-  const mod = await _dynamicImport("@monaco-editor/react");
-  return { default: mod.default ?? mod.Editor ?? (() => null) };
-});
 
 interface EditorPaneProps {
   isPrimary?: boolean;
-}
-
-interface MonacoEditorProps {
-  key?: string;
-  height?: string;
-  theme?: string;
-  language?: string;
-  value?: string;
-  onChange?: (val: string | undefined) => void;
-  onMount?: (editor: Monaco.editor.IStandaloneCodeEditor) => void;
-  options?: Record<string, unknown>;
 }
 
 export const EditorPane: React.FC<EditorPaneProps> = ({ isPrimary = true }) => {
@@ -220,30 +198,16 @@ export const EditorPane: React.FC<EditorPaneProps> = ({ isPrimary = true }) => {
         <WelcomeTab />
       ) : (
         <div className="flex-1 overflow-hidden">
-          <Suspense
-            fallback={
-              <div
-                className="flex items-center justify-center h-full"
-                style={{ color: "var(--text-muted)", fontSize: 12 }}
-              >
-                Loading editor...
-              </div>
-            }
-          >
-            <MonacoEditorLazy
-              {...({
-                key: activeFile.id,
-                height: "100%",
-                theme: monacoTheme,
-                language: activeFile.language,
-                value: activeFile.content,
-                onChange: (val: string | undefined) =>
-                  updateFileContent(activeFile.id, val ?? ""),
-                onMount: handleEditorMount,
-                options: editorOptions,
-              } as MonacoEditorProps)}
-            />
-          </Suspense>
+          <MonacoEditorCDN
+            key={activeFile.id}
+            height="100%"
+            theme={monacoTheme}
+            language={activeFile.language}
+            value={activeFile.content}
+            onChange={(val) => updateFileContent(activeFile.id, val ?? "")}
+            onMount={handleEditorMount}
+            options={editorOptions}
+          />
         </div>
       )}
     </div>
