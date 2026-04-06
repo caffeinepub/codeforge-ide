@@ -1,4 +1,14 @@
-import { Bot, Files, GitFork, Settings, Terminal } from "lucide-react";
+import {
+  Bot,
+  Files,
+  GitFork,
+  GitGraph,
+  Settings,
+  Share2,
+  Terminal,
+  Users,
+  Workflow,
+} from "lucide-react";
 import type React from "react";
 
 export type MobileNavTab =
@@ -6,7 +16,11 @@ export type MobileNavTab =
   | "github"
   | "ai"
   | "terminal"
-  | "settings";
+  | "settings"
+  | "collab"
+  | "social"
+  | "cicd"
+  | "vcs";
 
 interface MobileBottomNavProps {
   activeTab?: MobileNavTab;
@@ -19,6 +33,10 @@ const NAV_ITEMS: { id: MobileNavTab; icon: React.ReactNode; label: string }[] =
     { id: "github", icon: <GitFork size={19} />, label: "GitHub" },
     { id: "ai", icon: <Bot size={19} />, label: "AI" },
     { id: "terminal", icon: <Terminal size={19} />, label: "Terminal" },
+    { id: "collab", icon: <Users size={19} />, label: "Collab" },
+    { id: "social", icon: <Share2 size={19} />, label: "Social" },
+    { id: "cicd", icon: <Workflow size={19} />, label: "CI/CD" },
+    { id: "vcs", icon: <GitGraph size={19} />, label: "VCS" },
     { id: "settings", icon: <Settings size={19} />, label: "Settings" },
   ];
 
@@ -28,7 +46,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 }) => {
   return (
     <div
-      className="flex items-center flex-shrink-0 border-t border-[var(--border)]"
+      className="flex items-center flex-shrink-0 border-t border-[var(--border)] overflow-x-auto scrollbar-none"
       style={{ height: 52, background: "var(--bg-activity)" }}
       data-ocid="mobile.bottomnav.panel"
     >
@@ -38,7 +56,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <button
             key={item.id}
             type="button"
-            className="flex-1 h-full flex flex-col items-center justify-center gap-0.5 relative transition-colors"
+            className="flex-shrink-0 min-w-[52px] h-full flex flex-col items-center justify-center gap-0.5 relative transition-colors px-1"
             style={{
               color: isActive ? "var(--accent)" : "var(--icon-inactive)",
             }}

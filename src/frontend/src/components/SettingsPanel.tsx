@@ -1,15 +1,21 @@
 import {
   AlignLeft,
+  Bell,
   CheckCircle2,
   Cloud,
+  Download,
+  Globe,
   Hash,
   Keyboard,
   Link,
   Loader2,
+  Lock,
   Minus,
   Monitor,
   Moon,
+  Palette,
   Plus,
+  Shield,
   Sun,
   Type,
   X,
@@ -63,6 +69,22 @@ const KEYBOARD_SHORTCUTS = [
   { key: "Shift+?", action: "Keyboard Shortcuts Overlay" },
 ];
 
+const ACCENT_COLORS = [
+  { color: "#007acc", label: "Blue" },
+  { color: "#c678dd", label: "Purple" },
+  { color: "#e06c75", label: "Red" },
+  { color: "#98c379", label: "Green" },
+  { color: "#e5c07b", label: "Gold" },
+  { color: "#56b6c2", label: "Cyan" },
+];
+
+type SettingsTab =
+  | "editor"
+  | "appearance"
+  | "privacy"
+  | "notifications"
+  | "keybindings";
+
 export const SettingsPanel: React.FC = () => {
   const { showSettings, setShowSettings } = useEditorStore();
   const { theme, setTheme } = useThemeStore();
@@ -70,14 +92,40 @@ export const SettingsPanel: React.FC = () => {
   const { addNotification } = useNotificationStore();
   const { actor } = useActor();
   const { isLoggedIn } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<"editor" | "keybindings">(
-    "editor",
-  );
+  const [activeTab, setActiveTab] = useState<SettingsTab>("editor");
   const [kbSearch, setKbSearch] = useState("");
   const [cloudSyncing, setCloudSyncing] = useState(false);
   const [cloudSynced, setCloudSynced] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLoadedRef = useRef(false);
+
+  // Appearance state
+  const [density, setDensity] = useState<"compact" | "default" | "comfortable">(
+    "default",
+  );
+  const [sidebarPos, setSidebarPos] = useState<"left" | "right">("left");
+  const [showActivityLabels, setShowActivityLabels] = useState(true);
+  const [cursorStyle, setCursorStyle] = useState<
+    "line" | "block" | "underline"
+  >("line");
+  const [smoothScrolling, setSmoothScrolling] = useState(true);
+  const [reduceAnimations, setReduceAnimations] = useState(false);
+  const [accentColor, setAccentColor] = useState("#007acc");
+
+  // Privacy state
+  const [profilePublic, setProfilePublic] = useState(true);
+  const [showOnline, setShowOnline] = useState(true);
+  const [showActivity, setShowActivity] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+
+  // Notifications state
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [notifFollow, setNotifFollow] = useState(true);
+  const [notifMention, setNotifMention] = useState(true);
+  const [notifPRReview, setNotifPRReview] = useState(true);
+  const [notifCIFail, setNotifCIFail] = useState(true);
+  const [notifCISuccess, setNotifCISuccess] = useState(false);
+  const [notifSound, setNotifSound] = useState(false);
 
   // Load settings from backend when panel opens
   // biome-ignore lint/correctness/useExhaustiveDependencies: updateSettings is stable
@@ -96,12 +144,10 @@ export const SettingsPanel: React.FC = () => {
     });
   }, [showSettings, actor, isLoggedIn]);
 
-  // Reset loaded flag when panel closes
   useEffect(() => {
     if (!showSettings) isLoadedRef.current = false;
   }, [showSettings]);
 
-  // Debounced cloud save whenever settings change
   const handleSettingsChange = (
     patch: Parameters<typeof updateSettings>[0],
   ) => {
@@ -123,6 +169,33 @@ export const SettingsPanel: React.FC = () => {
   const handleSave = () => {
     setShowSettings(false);
     addNotification({ message: "Settings saved", type: "success" });
+  };
+
+  const handleExportData = () => {
+    const data = {
+      profile: {
+        displayName: "CodeVeda User",
+        bio: "",
+        location: "",
+        website: "",
+      },
+      settings: {
+        theme,
+        fontSize: settings.fontSize,
+        fontFamily: settings.fontFamily,
+      },
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "codeveda-profile-export.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    addNotification({ message: "Profile data exported", type: "success" });
   };
 
   const themes: { id: IDETheme; label: string; icon: React.ReactNode }[] = [
@@ -167,6 +240,53 @@ export const SettingsPanel: React.FC = () => {
       s.key.toLowerCase().includes(kbSearch.toLowerCase()),
   );
 
+  const TABS: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
+    { id: "editor", label: "Editor", icon: <Type size={11} /> },
+    { id: "appearance", label: "Appearance", icon: <Palette size={11} /> },
+    { id: "privacy", label: "Privacy", icon: <Shield size={11} /> },
+    { id: "notifications", label: "Notifs", icon: <Bell size={11} /> },
+    { id: "keybindings", label: "Keys", icon: <Keyboard size={11} /> },
+  ];
+
+  const Toggle = ({
+    checked,
+    onChange,
+    ocid,
+    disabled,
+  }: {
+    checked: boolean;
+    onChange: (v: boolean) => void;
+    ocid?: string;
+    disabled?: boolean;
+  }) => (
+    <button
+      type="button"
+      onClick={() => !disabled && onChange(!checked)}
+      disabled={disabled}
+      className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 disabled:opacity-40 ${
+        checked ? "bg-[var(--accent)]" : "bg-[var(--border)]"
+      }`}
+      data-ocid={ocid}
+    >
+      <span
+        className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all"
+        style={{ left: checked ? "calc(100% - 18px)" : "2px" }}
+      />
+    </button>
+  );
+
+  const Section = ({
+    title,
+    children,
+  }: { title: string; children: React.ReactNode }) => (
+    <section>
+      <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
+        {title}
+      </span>
+      {children}
+    </section>
+  );
+
   return (
     <AnimatePresence>
       {showSettings && (
@@ -186,7 +306,7 @@ export const SettingsPanel: React.FC = () => {
           />
           <motion.div
             className="relative w-full max-w-xl rounded border border-[var(--border)] shadow-2xl overflow-hidden"
-            style={{ background: "var(--bg-sidebar)", maxHeight: "85vh" }}
+            style={{ background: "var(--bg-sidebar)", maxHeight: "90vh" }}
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
@@ -253,49 +373,37 @@ export const SettingsPanel: React.FC = () => {
               </button>
             </div>
 
-            {/* Tabs */}
+            {/* Tabs — horizontally scrollable */}
             <div
-              className="flex border-b border-[var(--border)]"
+              className="flex border-b border-[var(--border)] overflow-x-auto"
               style={{ background: "var(--bg-tab-bar)" }}
             >
-              <button
-                type="button"
-                onClick={() => setActiveTab("editor")}
-                className={`flex items-center gap-1.5 px-4 py-2 text-xs border-b-2 transition-colors ${
-                  activeTab === "editor"
-                    ? "text-[var(--text-primary)] border-[var(--accent)]"
-                    : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]"
-                }`}
-                data-ocid="settings.editor.tab"
-              >
-                <Type size={11} /> Editor
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("keybindings")}
-                className={`flex items-center gap-1.5 px-4 py-2 text-xs border-b-2 transition-colors ${
-                  activeTab === "keybindings"
-                    ? "text-[var(--text-primary)] border-[var(--accent)]"
-                    : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]"
-                }`}
-                data-ocid="settings.keybindings.tab"
-              >
-                <Keyboard size={11} /> Keybindings
-              </button>
+              {TABS.map((tab) => (
+                <button
+                  type="button"
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-4 py-2 text-xs border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${
+                    activeTab === tab.id
+                      ? "text-[var(--text-primary)] border-[var(--accent)]"
+                      : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]"
+                  }`}
+                  data-ocid={`settings.${tab.id}.tab`}
+                >
+                  {tab.icon} {tab.label}
+                </button>
+              ))}
             </div>
 
             {/* Content */}
             <div
               className="overflow-y-auto"
-              style={{ maxHeight: "calc(85vh - 150px)" }}
+              style={{ maxHeight: "calc(90vh - 155px)" }}
             >
+              {/* EDITOR TAB */}
               {activeTab === "editor" && (
                 <div className="p-5 space-y-5">
-                  {/* Theme */}
-                  <section>
-                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
-                      Color Theme
-                    </span>
+                  <Section title="Color Theme">
                     <div className="grid grid-cols-2 gap-1.5">
                       {themes.map((t) => (
                         <button
@@ -313,13 +421,9 @@ export const SettingsPanel: React.FC = () => {
                         </button>
                       ))}
                     </div>
-                  </section>
+                  </Section>
 
-                  {/* Font Size */}
-                  <section>
-                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
-                      Font Size: {settings.fontSize}px
-                    </span>
+                  <Section title={`Font Size: ${settings.fontSize}px`}>
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
@@ -360,13 +464,9 @@ export const SettingsPanel: React.FC = () => {
                         <Plus size={12} />
                       </button>
                     </div>
-                  </section>
+                  </Section>
 
-                  {/* Font Family */}
-                  <section>
-                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
-                      Font Family
-                    </span>
+                  <Section title="Font Family">
                     <select
                       id="settings-font-family"
                       value={settings.fontFamily}
@@ -382,13 +482,9 @@ export const SettingsPanel: React.FC = () => {
                         </option>
                       ))}
                     </select>
-                  </section>
+                  </Section>
 
-                  {/* Tab Size */}
-                  <section>
-                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
-                      Tab Size
-                    </span>
+                  <Section title="Tab Size">
                     <div className="flex gap-2">
                       {[2, 4, 8].map((size) => (
                         <button
@@ -408,74 +504,560 @@ export const SettingsPanel: React.FC = () => {
                         </button>
                       ))}
                     </div>
-                  </section>
+                  </Section>
 
-                  {/* Toggles */}
-                  <section className="space-y-3">
-                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
-                      Editor Options
-                    </span>
-                    {[
-                      {
-                        key: "wordWrap",
-                        label: "Word Wrap",
-                        icon: <AlignLeft size={13} />,
-                      },
-                      {
-                        key: "minimap",
-                        label: "Show Minimap",
-                        icon: <Hash size={13} />,
-                      },
-                      {
-                        key: "lineNumbers",
-                        label: "Line Numbers",
-                        icon: <Type size={13} />,
-                      },
-                      {
-                        key: "fontLigatures",
-                        label: "Font Ligatures",
-                        icon: <Link size={13} />,
-                      },
-                    ].map(({ key, label, icon }) => (
-                      <div
-                        key={key}
-                        className="flex items-center justify-between"
-                      >
-                        <span className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                          <span style={{ color: "var(--icon-inactive)" }}>
-                            {icon}
+                  <Section title="Editor Options">
+                    <div className="space-y-3">
+                      {[
+                        {
+                          key: "wordWrap",
+                          label: "Word Wrap",
+                          icon: <AlignLeft size={13} />,
+                        },
+                        {
+                          key: "minimap",
+                          label: "Show Minimap",
+                          icon: <Hash size={13} />,
+                        },
+                        {
+                          key: "lineNumbers",
+                          label: "Line Numbers",
+                          icon: <Type size={13} />,
+                        },
+                        {
+                          key: "fontLigatures",
+                          label: "Font Ligatures",
+                          icon: <Link size={13} />,
+                        },
+                      ].map(({ key, label, icon }) => (
+                        <div
+                          key={key}
+                          className="flex items-center justify-between"
+                        >
+                          <span className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                            <span style={{ color: "var(--icon-inactive)" }}>
+                              {icon}
+                            </span>
+                            {label}
                           </span>
-                          {label}
-                        </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleSettingsChange({
+                                [key]: !settings[key as keyof typeof settings],
+                              })
+                            }
+                            className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${
+                              settings[key as keyof typeof settings]
+                                ? "bg-[var(--accent)]"
+                                : "bg-[var(--border)]"
+                            }`}
+                            data-ocid={`settings.${key}.toggle`}
+                          >
+                            <span
+                              className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all"
+                              style={{
+                                left: settings[key as keyof typeof settings]
+                                  ? "calc(100% - 18px)"
+                                  : "2px",
+                              }}
+                            />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </Section>
+                </div>
+              )}
+
+              {/* APPEARANCE TAB */}
+              {activeTab === "appearance" && (
+                <div className="p-5 space-y-6">
+                  {/* UI Density */}
+                  <Section title="UI Density">
+                    <div
+                      className="flex rounded border border-[var(--border)] overflow-hidden"
+                      style={{ background: "var(--bg-input)" }}
+                    >
+                      {(["compact", "default", "comfortable"] as const).map(
+                        (d) => (
+                          <button
+                            type="button"
+                            key={d}
+                            onClick={() => setDensity(d)}
+                            className="flex-1 py-1.5 text-xs font-medium capitalize transition-colors"
+                            style={{
+                              background:
+                                density === d ? "var(--accent)" : "transparent",
+                              color:
+                                density === d
+                                  ? "white"
+                                  : "var(--text-secondary)",
+                            }}
+                            data-ocid={`settings.density_${d}.button`}
+                          >
+                            {d}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  </Section>
+
+                  {/* Sidebar Position */}
+                  <Section title="Sidebar Position">
+                    <div
+                      className="flex rounded border border-[var(--border)] overflow-hidden w-40"
+                      style={{ background: "var(--bg-input)" }}
+                    >
+                      {(["left", "right"] as const).map((pos) => (
                         <button
                           type="button"
-                          onClick={() =>
-                            handleSettingsChange({
-                              [key]: !settings[key as keyof typeof settings],
-                            })
-                          }
-                          className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${
-                            settings[key as keyof typeof settings]
-                              ? "bg-[var(--accent)]"
-                              : "bg-[var(--border)]"
-                          }`}
-                          data-ocid={`settings.${key}.toggle`}
+                          key={pos}
+                          onClick={() => setSidebarPos(pos)}
+                          className="flex-1 py-1.5 text-xs font-medium capitalize transition-colors"
+                          style={{
+                            background:
+                              sidebarPos === pos
+                                ? "var(--accent)"
+                                : "transparent",
+                            color:
+                              sidebarPos === pos
+                                ? "white"
+                                : "var(--text-secondary)",
+                          }}
+                          data-ocid={`settings.sidebar_${pos}.button`}
                         >
-                          <span
-                            className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all"
-                            style={{
-                              left: settings[key as keyof typeof settings]
-                                ? "calc(100% - 18px)"
-                                : "2px",
-                            }}
-                          />
+                          {pos}
                         </button>
+                      ))}
+                    </div>
+                  </Section>
+
+                  {/* Toggle rows */}
+                  <Section title="Interface">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-xs"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          Activity Bar Labels
+                        </span>
+                        <Toggle
+                          checked={showActivityLabels}
+                          onChange={setShowActivityLabels}
+                          ocid="settings.activity_labels.toggle"
+                        />
                       </div>
-                    ))}
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-xs"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          Smooth Scrolling
+                        </span>
+                        <Toggle
+                          checked={smoothScrolling}
+                          onChange={setSmoothScrolling}
+                          ocid="settings.smooth_scroll.toggle"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-xs"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          Reduce Animations
+                        </span>
+                        <Toggle
+                          checked={reduceAnimations}
+                          onChange={setReduceAnimations}
+                          ocid="settings.reduce_animations.toggle"
+                        />
+                      </div>
+                    </div>
+                  </Section>
+
+                  {/* Cursor Style */}
+                  <Section title="Cursor Style">
+                    <div
+                      className="flex rounded border border-[var(--border)] overflow-hidden"
+                      style={{ background: "var(--bg-input)" }}
+                    >
+                      {(["line", "block", "underline"] as const).map((c) => (
+                        <button
+                          type="button"
+                          key={c}
+                          onClick={() => setCursorStyle(c)}
+                          className="flex-1 py-1.5 text-xs font-medium capitalize transition-colors"
+                          style={{
+                            background:
+                              cursorStyle === c
+                                ? "var(--accent)"
+                                : "transparent",
+                            color:
+                              cursorStyle === c
+                                ? "white"
+                                : "var(--text-secondary)",
+                          }}
+                          data-ocid={`settings.cursor_${c}.button`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </Section>
+
+                  {/* Accent Color */}
+                  <Section title="Accent Color">
+                    <div className="flex items-center gap-2">
+                      {ACCENT_COLORS.map(({ color, label }) => (
+                        <button
+                          type="button"
+                          key={color}
+                          onClick={() => setAccentColor(color)}
+                          className="w-7 h-7 rounded-full transition-transform hover:scale-110 relative flex-shrink-0"
+                          style={{
+                            background: color,
+                            boxShadow:
+                              accentColor === color
+                                ? `0 0 0 2px var(--bg-sidebar), 0 0 0 4px ${color}`
+                                : "none",
+                          }}
+                          aria-label={`Accent color ${label}`}
+                          data-ocid={`settings.accent_${label.toLowerCase()}.button`}
+                        />
+                      ))}
+                    </div>
+                  </Section>
+                </div>
+              )}
+
+              {/* PRIVACY TAB */}
+              {activeTab === "privacy" && (
+                <div className="p-5 space-y-6">
+                  {/* Profile Visibility */}
+                  <Section title="Profile Visibility">
+                    <div
+                      className="flex rounded border border-[var(--border)] overflow-hidden w-44"
+                      style={{ background: "var(--bg-input)" }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setProfilePublic(true)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium transition-colors"
+                        style={{
+                          background: profilePublic
+                            ? "var(--accent)"
+                            : "transparent",
+                          color: profilePublic
+                            ? "white"
+                            : "var(--text-secondary)",
+                        }}
+                        data-ocid="settings.profile_public.button"
+                      >
+                        <Globe size={10} /> Public
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProfilePublic(false)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium transition-colors"
+                        style={{
+                          background: !profilePublic
+                            ? "var(--accent)"
+                            : "transparent",
+                          color: !profilePublic
+                            ? "white"
+                            : "var(--text-secondary)",
+                        }}
+                        data-ocid="settings.profile_private.button"
+                      >
+                        <Lock size={10} /> Private
+                      </button>
+                    </div>
+                  </Section>
+
+                  {/* Privacy toggles */}
+                  <Section title="Visibility">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-xs"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          Show Online Status
+                        </span>
+                        <Toggle
+                          checked={showOnline}
+                          onChange={setShowOnline}
+                          ocid="settings.show_online.toggle"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-xs"
+                          style={{ color: "var(--text-secondary)" }}
+                        >
+                          Show Activity to Followers
+                        </span>
+                        <Toggle
+                          checked={showActivity}
+                          onChange={setShowActivity}
+                          ocid="settings.show_activity.toggle"
+                        />
+                      </div>
+                    </div>
+                  </Section>
+
+                  {/* 2FA info */}
+                  <Section title="Security">
+                    <div
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded"
+                      style={{
+                        background: "rgba(152,195,121,0.08)",
+                        border: "1px solid rgba(152,195,121,0.25)",
+                      }}
+                    >
+                      <CheckCircle2
+                        size={14}
+                        style={{ color: "#98c379", flexShrink: 0 }}
+                      />
+                      <div>
+                        <p
+                          className="text-xs font-medium"
+                          style={{ color: "#98c379" }}
+                        >
+                          2FA via Internet Identity
+                        </p>
+                        <p
+                          className="text-[10px] mt-0.5"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          Your identity is secured by ICP cryptography
+                        </p>
+                      </div>
+                    </div>
+                  </Section>
+
+                  {/* Export */}
+                  <Section title="Data">
+                    <button
+                      type="button"
+                      onClick={handleExportData}
+                      className="flex items-center gap-2 px-3 py-2 rounded border border-[var(--border)] text-xs transition-colors hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+                      style={{ color: "var(--text-secondary)" }}
+                      data-ocid="settings.export.button"
+                    >
+                      <Download size={12} />
+                      Export Profile Data
+                    </button>
+                  </Section>
+
+                  {/* Danger Zone */}
+                  <section>
+                    <div
+                      className="rounded border p-4"
+                      style={{
+                        borderColor: "rgba(224,108,117,0.4)",
+                        background: "rgba(224,108,117,0.04)",
+                      }}
+                    >
+                      <p
+                        className="text-[10px] font-semibold uppercase tracking-wider mb-3"
+                        style={{ color: "#e06c75" }}
+                      >
+                        Danger Zone
+                      </p>
+                      {deleteConfirm ? (
+                        <div className="space-y-2">
+                          <p
+                            className="text-xs"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            Are you sure? This cannot be undone.
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeleteConfirm(false);
+                                addNotification({
+                                  message: "Account deletion cancelled",
+                                  type: "info",
+                                });
+                              }}
+                              className="px-3 py-1.5 rounded border border-[var(--border)] text-xs"
+                              style={{ color: "var(--text-secondary)" }}
+                              data-ocid="settings.delete_cancel.button"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeleteConfirm(false);
+                                addNotification({
+                                  message: "Account deletion requested",
+                                  type: "error",
+                                });
+                              }}
+                              className="px-3 py-1.5 rounded text-xs font-medium"
+                              style={{
+                                background: "#e06c75",
+                                color: "white",
+                              }}
+                              data-ocid="settings.delete_confirm.button"
+                            >
+                              Confirm Delete
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirm(true)}
+                          className="px-3 py-1.5 rounded text-xs font-medium border"
+                          style={{
+                            color: "#e06c75",
+                            borderColor: "rgba(224,108,117,0.4)",
+                            background: "transparent",
+                          }}
+                          data-ocid="settings.delete.button"
+                        >
+                          Delete Account
+                        </button>
+                      )}
+                    </div>
                   </section>
                 </div>
               )}
 
+              {/* NOTIFICATIONS TAB */}
+              {activeTab === "notifications" && (
+                <div className="p-5 space-y-6">
+                  {/* Master toggle */}
+                  <Section title="Push Notifications">
+                    <div className="flex items-center justify-between">
+                      <span
+                        className="text-xs"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        Enable Push Notifications
+                      </span>
+                      <Toggle
+                        checked={pushEnabled}
+                        onChange={setPushEnabled}
+                        ocid="settings.push_notif.toggle"
+                      />
+                    </div>
+                  </Section>
+
+                  {/* Per-event toggles */}
+                  <Section title="Notify Me When">
+                    <div className="space-y-3">
+                      {[
+                        {
+                          label: "Someone follows me",
+                          checked: notifFollow,
+                          set: setNotifFollow,
+                          ocid: "settings.notif_follow.toggle",
+                        },
+                        {
+                          label: "Someone mentions me",
+                          checked: notifMention,
+                          set: setNotifMention,
+                          ocid: "settings.notif_mention.toggle",
+                        },
+                        {
+                          label: "PR review requested",
+                          checked: notifPRReview,
+                          set: setNotifPRReview,
+                          ocid: "settings.notif_pr.toggle",
+                        },
+                        {
+                          label: "CI/CD pipeline fails",
+                          checked: notifCIFail,
+                          set: setNotifCIFail,
+                          ocid: "settings.notif_ci_fail.toggle",
+                        },
+                        {
+                          label: "CI/CD pipeline succeeds",
+                          checked: notifCISuccess,
+                          set: setNotifCISuccess,
+                          ocid: "settings.notif_ci_success.toggle",
+                        },
+                      ].map((item) => (
+                        <div
+                          key={item.label}
+                          className="flex items-center justify-between"
+                        >
+                          <span
+                            className="text-xs"
+                            style={{
+                              color: pushEnabled
+                                ? "var(--text-secondary)"
+                                : "var(--text-muted)",
+                            }}
+                          >
+                            {item.label}
+                          </span>
+                          <Toggle
+                            checked={item.checked && pushEnabled}
+                            onChange={item.set}
+                            disabled={!pushEnabled}
+                            ocid={item.ocid}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </Section>
+
+                  {/* Sound */}
+                  <Section title="Sound">
+                    <div className="flex items-center justify-between">
+                      <span
+                        className="text-xs"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        Notification Sound
+                      </span>
+                      <Toggle
+                        checked={notifSound}
+                        onChange={setNotifSound}
+                        ocid="settings.notif_sound.toggle"
+                      />
+                    </div>
+                  </Section>
+
+                  {/* Email (disabled) */}
+                  <Section title="Email Notifications">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span
+                          className="text-xs"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          Email Notifications
+                        </span>
+                        <p
+                          className="text-[10px] mt-0.5"
+                          style={{ color: "var(--text-muted)", opacity: 0.6 }}
+                        >
+                          Available on paid plans
+                        </p>
+                      </div>
+                      <Toggle
+                        checked={false}
+                        onChange={() => {}}
+                        disabled
+                        ocid="settings.email_notif.toggle"
+                      />
+                    </div>
+                  </Section>
+                </div>
+              )}
+
+              {/* KEYBINDINGS TAB */}
               {activeTab === "keybindings" && (
                 <div className="p-4">
                   <div

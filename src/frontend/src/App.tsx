@@ -69,6 +69,14 @@ const ALL_SHORTCUTS = [
   { key: "F12", action: "Go to Definition" },
 ];
 
+// Map mobile nav tabs that correspond to sidebar panels
+const MOBILE_SIDEBAR_PANEL_TABS: Record<string, ActivityTab> = {
+  collab: "collab",
+  social: "social",
+  cicd: "cicd",
+  vcs: "vcs",
+};
+
 function IDELayout() {
   useEditorShortcuts();
 
@@ -105,6 +113,10 @@ function IDELayout() {
     MobileNavTab | undefined
   >(undefined);
   const [mobileGitHubOpen, setMobileGitHubOpen] = useState(false);
+  // Mobile panel drawer (for collab/social/cicd/vcs)
+  const [mobilePanelDrawerOpen, setMobilePanelDrawerOpen] = useState(false);
+  const [mobilePanelDrawerTab, setMobilePanelDrawerTab] =
+    useState<ActivityTab>("collab");
 
   const bottomPanelRef = useRef<BottomPanelHandle>(null);
 
@@ -194,14 +206,17 @@ function IDELayout() {
   };
 
   const handleMobileNav = (tab: MobileNavTab) => {
+    // Close previously open panels
+    setMobileSidebarOpen(false);
+    setMobileGitHubOpen(false);
+    setMobilePanelDrawerOpen(false);
+
     if (tab === "explorer") {
       setMobileSidebarPanel("explorer");
       setMobileSidebarOpen(true);
       setMobileActiveTab("explorer");
-      setMobileGitHubOpen(false);
     } else if (tab === "github") {
-      setMobileGitHubOpen((v) => !v);
-      setMobileSidebarOpen(false);
+      setMobileGitHubOpen(true);
       setMobileActiveTab("github");
     } else if (tab === "settings") {
       setShowSettings(true);
@@ -213,6 +228,11 @@ function IDELayout() {
       setBottomPanelVisible(true);
       setTimeout(() => bottomPanelRef.current?.setTab("terminal"), 50);
       setMobileActiveTab("terminal");
+    } else if (MOBILE_SIDEBAR_PANEL_TABS[tab]) {
+      const panelTab = MOBILE_SIDEBAR_PANEL_TABS[tab];
+      setMobilePanelDrawerTab(panelTab);
+      setMobilePanelDrawerOpen(true);
+      setMobileActiveTab(tab);
     }
   };
 
@@ -344,6 +364,64 @@ function IDELayout() {
                 </button>
               </div>
               <GitHubPanel />
+            </div>
+          </div>
+        )}
+
+        {/* Phase 9 panel drawer (Collab / Social / CI/CD / VCS) */}
+        {mobilePanelDrawerOpen && (
+          <div
+            className="fixed inset-0 z-40"
+            style={{ background: "rgba(0,0,0,0.5)" }}
+            onClick={() => {
+              setMobilePanelDrawerOpen(false);
+              setMobileActiveTab(undefined);
+            }}
+            onKeyDown={(e) =>
+              e.key === "Escape" && setMobilePanelDrawerOpen(false)
+            }
+          >
+            <div
+              className="absolute top-0 right-0 h-full overflow-y-auto"
+              style={{
+                width: Math.min(320, window.innerWidth * 0.9),
+                background: "var(--bg-sidebar)",
+                borderLeft: "1px solid var(--border)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              <div
+                className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)] flex-shrink-0"
+                style={{ background: "var(--bg-activity)" }}
+              >
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {mobilePanelDrawerTab === "collab" && "Collaboration"}
+                  {mobilePanelDrawerTab === "social" && "Social Coding"}
+                  {mobilePanelDrawerTab === "cicd" && "CI/CD Pipeline"}
+                  {mobilePanelDrawerTab === "vcs" && "Version Control"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobilePanelDrawerOpen(false);
+                    setMobileActiveTab(undefined);
+                  }}
+                  className="p-1 rounded hover:bg-[var(--hover-item)] transition-colors"
+                  data-ocid="mobile.panel.close_button"
+                >
+                  <X size={14} style={{ color: "var(--text-muted)" }} />
+                </button>
+              </div>
+              <div className="h-full overflow-y-auto">
+                <Sidebar
+                  activePanel={mobilePanelDrawerTab}
+                  width={Math.min(320, window.innerWidth * 0.9)}
+                />
+              </div>
             </div>
           </div>
         )}

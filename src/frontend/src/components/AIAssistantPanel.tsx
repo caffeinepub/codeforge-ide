@@ -1,8 +1,21 @@
+import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Bot,
   ChevronDown,
   ClipboardCopy,
   Download,
+  Eye,
+  FlaskConical,
+  GitCommit,
+  Mic,
+  MicOff,
+  Network,
   Plus,
   Send,
   Sparkles,
@@ -26,7 +39,21 @@ function generateAIResponse(
 
   if (lower.includes("test") || lower.includes("unit test")) {
     const fname = activeFile ?? "myModule";
-    return `Here's a Jest unit test template for **${fname}**:\n\n\`\`\`typescript\nimport { render, screen } from '@testing-library/react';\nimport '@testing-library/jest-dom';\n\ndescribe('${fname.replace(/\.[^.]+$/, "")}', () => {\n  it('renders without crashing', () => {\n    expect(true).toBe(true);\n  });\n\n  it('handles user interaction', () => {\n    expect(true).toBe(true);\n  });\n});\n\`\`\`\n\nRun tests with: \`npx jest --watchAll\``;
+    return `Here's a Jest unit test template for **${fname}**:\n\n\`\`\`typescript\nimport { render, screen } from '@testing-library/react';\nimport '@testing-library/jest-dom';\n\ndescribe('${fname.replace(/\.[^.]+$/, "")}', () => {\n  it('renders without crashing', () => {\n    expect(true).toBe(true);\n  });\n\n  it('handles user interaction', () => {\n    expect(true).toBe(true);\n  });\n\n  it('returns correct data', async () => {\n    const result = await fetchData();\n    expect(result).toBeDefined();\n  });\n});\n\`\`\`\n\nRun tests with: \`npx jest --watchAll\``;
+  }
+
+  if (
+    lower.includes("architecture") ||
+    lower.includes("design") ||
+    lower.includes("mermaid")
+  ) {
+    // biome-ignore lint/style/noUnusedTemplateLiteral: contains backtick chars
+    return `## Mermaid Architecture Diagram\n\n\`\`\`\ngraph TD\n  App[App.tsx]\n  App --> ActivityBar\n  App --> Sidebar\n  App --> Editor[SplitEditor]\n  App --> BottomPanel\n  App --> AIPanel[AI Assistant]\n\n  Sidebar --> Explorer\n  Sidebar --> GitHub\n  Sidebar --> Git\n  Sidebar --> Collab\n  Sidebar --> VCS\n  Sidebar --> CICD\n  Sidebar --> Social\n\n  Editor --> Monaco[Monaco Editor CDN]\n  BottomPanel --> Terminal\n  BottomPanel --> Search\n  BottomPanel --> Diff\n\n  State[Zustand Stores]\n  State --> editorStore\n  State --> aiStore\n  State --> githubStore\n  State --> filesystemStore\n\`\`\`\n\nPaste this in [mermaid.live](https://mermaid.live) to visualize the full diagram.`;
+  }
+
+  if (lower.includes("commit message") || lower.includes("git commit")) {
+    // biome-ignore lint/style/noUnusedTemplateLiteral: contains backtick characters
+    return `## Suggested Commit Message\n\n\`\`\`\nfeat(ide): add collaboration, social coding, CI/CD and VCS panels\n\n- Add live collaboration panel with session management and user presence\n- Add social coding panel with project/developer discovery and follow\n- Add CI/CD pipeline UI with animated stage progression and deploy history\n- Add version control panel with visual commit graph, branches, and stash\n- Upgrade AI assistant with voice input, test gen, and pair programmer mode\n\`\`\`\n\n**Conventional Commit format:**\n- \`feat\`: new feature\n- \`fix\`: bug fix\n- \`chore\`: maintenance\n- \`docs\`: documentation\n- \`refactor\`: code restructure`;
   }
 
   if (lower.includes("docs") || lower.includes("documentation")) {
@@ -37,13 +64,8 @@ function generateAIResponse(
     return `## Code Review — ${activeFile ?? "Current File"}\n\n**Summary:**\nThe code follows a reasonable structure. A few areas could benefit from improvement in error handling and type safety.\n\n**Issues:**\n1. Missing error boundary around async operations\n2. Untyped \`any\` usages reduce type safety\n3. No loading state for async calls\n4. Consider extracting repeated logic into a custom hook\n\n**Suggestions:**\n\`\`\`typescript\ntry {\n  const data = await fetchData();\n  setResult(data);\n} catch (error) {\n  setError(error instanceof Error ? error.message : 'Unknown error');\n} finally {\n  setLoading(false);\n}\n\`\`\`\n\n**Score: 7/10** — Good structure, needs better error handling.`;
   }
 
-  if (lower.includes("architecture") || lower.includes("design")) {
-    // biome-ignore lint/style/noUnusedTemplateLiteral: contains backtick chars
-    return `## React Architecture\n\n\`\`\`\nApp.tsx\n├── Context / Theme\n├── Router\n└── Layout\n    ├── Sidebar (panels)\n    ├── EditorPane (Monaco)\n    └── BottomPanel (terminal)\n\nState (Zustand stores):\n  editorStore  githubStore\n  aiStore      filesystemStore\n\`\`\`\n\n**Recommended patterns:**\n- **Zustand** for global state (avoid prop drilling)\n- **React Query** for async data fetching\n- **Compound components** for complex UI\n- **Custom hooks** for reusable logic`;
-  }
-
   if (lower.includes("voice")) {
-    return `Voice coding is coming soon! For now, type your prompt and I'll generate the code.\n\nIn the meantime, try these quick actions:\n- **Tab completion** with Ctrl+Space\n- **Quick prompts** using the chips below\n- **Command palette** with Ctrl+Shift+P`;
+    return `Voice coding activated! Speak your prompt and I\'ll generate the code.\n\nIn the meantime, try these quick actions:\n- **Tab completion** with Ctrl+Space\n- **Quick prompts** using the chips below\n- **Command palette** with Ctrl+Shift+P`;
   }
 
   if (lower.includes("explain")) {
@@ -84,7 +106,7 @@ function generateAIResponse(
     return `ICP / Motoko assistance:\n\n\`\`\`motoko\nactor MyCanister {\n  stable var counter : Nat = 0;\n\n  public func increment() : async Nat {\n    counter += 1;\n    counter\n  };\n\n  public query func get() : async Nat {\n    counter\n  };\n}\n\`\`\`\n\n**Frontend call pattern:**\n\`\`\`typescript\nconst { actor } = useActor();\nconst result = await actor?.increment();\n\`\`\`\n\nUse **query** calls for reads (fast), **update** calls for writes.`;
   }
 
-  return `I'm your **CodeVeda AI Assistant**. I can help you with:\n\n- Explain — "Explain this function"\n- Fix bugs — "Fix the error in my code"\n- Generate — "Generate a React hook"\n- Refactor — "Refactor this component"\n- Architecture — "Design this system"\n- Docs — "Generate documentation"\n- Tests — "Write unit tests"\n- Review — "Code review"\n- ICP/Motoko — "Write a Motoko actor"\n\nCurrently viewing: **${activeFile || "No file open"}**`;
+  return `I'm your **CodeVeda AI Assistant**. I can help you with:\n\n- Explain — "Explain this function"\n- Fix bugs — "Fix the error in my code"\n- Generate — "Generate a React hook"\n- Refactor — "Refactor this component"\n- Architecture — "Design this system" (generates Mermaid)\n- Docs — "Generate documentation"\n- Tests — "Write unit tests"\n- Review — "Code review"\n- Commit — "Generate commit message"\n- ICP/Motoko — "Write a Motoko actor"\n\nCurrently viewing: **${activeFile || "No file open"}**`;
 }
 
 // --- Conversation sessions ---
@@ -233,10 +255,22 @@ const QUICK_PROMPTS = [
   { label: "Explain", prompt: "Explain this code" },
   { label: "Fix Bug", prompt: "Fix the bug in this code" },
   { label: "Refactor", prompt: "Refactor this code" },
-  { label: "Tests", prompt: "Write unit tests for this" },
   { label: "Review", prompt: "Code review" },
   { label: "Docs", prompt: "Generate documentation" },
   { label: "ICP", prompt: "Write a Motoko canister" },
+];
+
+const EXTRA_PROMPTS = [
+  {
+    label: "Test Gen",
+    prompt: "Generate comprehensive unit tests for this code",
+    icon: <FlaskConical size={8} />,
+  },
+  {
+    label: "Architecture",
+    prompt: "Generate a Mermaid architecture diagram for this project",
+    icon: <Network size={8} />,
+  },
 ];
 
 const MODELS = ["GPT-4o", "Claude 3.5", "CodeLlama"];
@@ -297,6 +331,12 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
   const [pendingContent, setPendingContent] = useState<string>("");
   const [selectedModel, setSelectedModel] = useState("GPT-4o");
   const [showModelMenu, setShowModelMenu] = useState(false);
+  // AI Watching (pair programmer) toggle
+  const [aiWatching, setAiWatching] = useState(false);
+  // Voice input state
+  const [isListening, setIsListening] = useState(false);
+  const [voiceUnsupported, setVoiceUnsupported] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -321,6 +361,53 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
+
+  // Cleanup recognition on unmount
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, []);
+
+  const handleVoice = () => {
+    const SpeechRecognitionCtor =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognitionCtor) {
+      setVoiceUnsupported(true);
+      setTimeout(() => setVoiceUnsupported(false), 3000);
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognitionCtor() as any;
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  };
 
   const updateSessionMessages = (
     sessionId: string,
@@ -420,340 +507,510 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
     });
   };
 
+  const handleGenerateCommit = () => {
+    const fileList = openFiles.map((f) => f.name).join(", ") || "current file";
+    handleQuickPrompt(
+      `Generate a git commit message for these changes: ${fileList}`,
+    );
+  };
+
   return (
-    <motion.div
-      className="flex flex-col border-l border-[var(--border)] flex-shrink-0 overflow-hidden"
-      style={{ width, background: "var(--bg-sidebar)" }}
-      initial={{ width: 0, opacity: 0 }}
-      animate={{ width, opacity: 1 }}
-      exit={{ width: 0, opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      data-ocid="ai.panel"
-    >
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--border)] flex-shrink-0"
-        style={{ background: "var(--bg-activity)", minHeight: 40 }}
+    <TooltipProvider>
+      <motion.div
+        className="flex flex-col border-l border-[var(--border)] flex-shrink-0 overflow-hidden"
+        style={{ width, background: "var(--bg-sidebar)" }}
+        initial={{ width: 0, opacity: 0 }}
+        animate={{ width, opacity: 1 }}
+        exit={{ width: 0, opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        data-ocid="ai.panel"
       >
-        <div className="flex items-center gap-1.5">
-          <Bot size={13} style={{ color: "var(--accent)" }} />
-          <span
-            className="text-xs font-semibold"
-            style={{ color: "var(--text-primary)" }}
-          >
-            AI Chat
-          </span>
-          {/* Model selector */}
-          <div className="relative">
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--border)] flex-shrink-0"
+          style={{
+            background: aiWatching
+              ? "rgba(197,78,255,0.08)"
+              : "var(--bg-activity)",
+            borderBottom: aiWatching
+              ? "1px solid rgba(197,78,255,0.3)"
+              : undefined,
+            minHeight: 40,
+          }}
+        >
+          <div className="flex items-center gap-1.5">
+            <Bot
+              size={13}
+              style={{ color: aiWatching ? "#c678dd" : "var(--accent)" }}
+            />
+            <span
+              className="text-xs font-semibold"
+              style={{ color: "var(--text-primary)" }}
+            >
+              AI Chat
+            </span>
+            {/* AI Watching badge */}
+            {aiWatching && (
+              <motion.span
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold live-badge"
+                style={{
+                  background: "rgba(197,78,255,0.2)",
+                  color: "#c678dd",
+                  border: "1px solid rgba(197,78,255,0.4)",
+                }}
+              >
+                <Eye size={7} /> AI Watching
+              </motion.span>
+            )}
+            {/* Model selector */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowModelMenu((v) => !v)}
+                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] transition-colors hover:bg-[var(--hover-item)]"
+                style={{
+                  background: "rgba(0,122,204,0.1)",
+                  border: "1px solid rgba(0,122,204,0.25)",
+                  color: "var(--accent)",
+                }}
+                data-ocid="ai.select"
+              >
+                <Sparkles size={8} />
+                {selectedModel}
+                <ChevronDown size={8} />
+              </button>
+              {showModelMenu && (
+                <div
+                  className="absolute top-full left-0 mt-1 rounded shadow-lg z-50 py-1"
+                  style={{
+                    background: "var(--bg-activity)",
+                    border: "1px solid var(--border)",
+                    minWidth: 110,
+                  }}
+                >
+                  {MODELS.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        setSelectedModel(m);
+                        setShowModelMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-[10px] hover:bg-[var(--hover-item)] transition-colors"
+                      style={{
+                        color:
+                          m === selectedModel
+                            ? "var(--accent)"
+                            : "var(--text-secondary)",
+                      }}
+                    >
+                      {m === selectedModel ? "\u2713 " : "  "}
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-0.5">
+            {/* AI Watching Toggle */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1 mr-1">
+                  <Switch
+                    checked={aiWatching}
+                    onCheckedChange={setAiWatching}
+                    className="scale-75"
+                    data-ocid="ai.switch"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-[10px]">
+                {aiWatching
+                  ? "Disable AI Watching"
+                  : "Enable AI Pair Programmer"}
+              </TooltipContent>
+            </Tooltip>
             <button
               type="button"
-              onClick={() => setShowModelMenu((v) => !v)}
-              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] transition-colors hover:bg-[var(--hover-item)]"
+              onClick={handleExport}
+              className="p-1 rounded hover:bg-[var(--hover-item)] text-[var(--icon-inactive)] hover:text-[var(--text-primary)] transition-colors"
+              title="Export conversation as Markdown"
+              data-ocid="ai.save_button"
+            >
+              <Download size={11} />
+            </button>
+            <button
+              type="button"
+              onClick={handleClearSession}
+              className="p-1 rounded hover:bg-[var(--hover-item)] text-[var(--icon-inactive)] hover:text-[var(--text-primary)] transition-colors"
+              title="Clear session"
+              data-ocid="ai.delete_button"
+            >
+              <Trash2 size={11} />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded hover:bg-[var(--hover-item)] text-[var(--icon-inactive)] hover:text-[var(--text-primary)] transition-colors"
+              data-ocid="ai.close_button"
+            >
+              <X size={11} />
+            </button>
+          </div>
+        </div>
+
+        {/* AI Watching pulse indicator */}
+        {aiWatching && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="px-3 py-1 flex items-center gap-1.5 border-b border-[var(--border)] flex-shrink-0"
+            style={{ background: "rgba(197,78,255,0.05)" }}
+          >
+            <motion.span
+              animate={{ opacity: [1, 0.3, 1] }}
+              transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1.5 }}
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: "#c678dd" }}
+            />
+            <span className="text-[9px]" style={{ color: "#c678dd" }}>
+              AI is analyzing your code in real-time
+            </span>
+          </motion.div>
+        )}
+
+        {/* Session selector */}
+        <div
+          className="flex items-center gap-1 px-2 py-1 border-b border-[var(--border)] flex-shrink-0"
+          style={{ background: "var(--bg-editor)", minHeight: 30 }}
+        >
+          <div className="flex-1 flex items-center gap-1 overflow-x-auto">
+            {sessions.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setActiveSessionId(s.id)}
+                className="flex-shrink-0 px-2 py-0.5 rounded text-[9px] transition-colors"
+                style={{
+                  background:
+                    s.id === activeSessionId
+                      ? "rgba(0,122,204,0.15)"
+                      : "var(--bg-activity)",
+                  border:
+                    s.id === activeSessionId
+                      ? "1px solid rgba(0,122,204,0.3)"
+                      : "1px solid var(--border)",
+                  color:
+                    s.id === activeSessionId
+                      ? "var(--accent)"
+                      : "var(--text-muted)",
+                }}
+                data-ocid="ai.session.tab"
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={handleNewSession}
+            className="flex-shrink-0 p-0.5 rounded hover:bg-[var(--hover-item)] transition-colors"
+            title="New session"
+            data-ocid="ai.open_modal_button"
+          >
+            <Plus size={11} style={{ color: "var(--accent)" }} />
+          </button>
+        </div>
+
+        {/* File context badge + smart commit */}
+        {activeFile && (
+          <div
+            className="px-3 py-1 flex-shrink-0 flex items-center justify-between"
+            style={{ background: "var(--bg-editor)" }}
+          >
+            <div
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px]"
               style={{
                 background: "rgba(0,122,204,0.1)",
                 border: "1px solid rgba(0,122,204,0.25)",
                 color: "var(--accent)",
               }}
-              data-ocid="ai.select"
             >
-              <Sparkles size={8} />
-              {selectedModel}
-              <ChevronDown size={8} />
+              <span>📄</span>
+              <span>{activeFile.name}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleGenerateCommit}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] transition-colors hover:bg-[var(--hover-item)]"
+              style={{
+                background: "rgba(34,197,94,0.1)",
+                border: "1px solid rgba(34,197,94,0.3)",
+                color: "#22c55e",
+              }}
+              data-ocid="ai.secondary_button"
+              title="Generate commit message"
+            >
+              <GitCommit size={8} />
+              <span>✨ Commit</span>
             </button>
-            {showModelMenu && (
+          </div>
+        )}
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          {messages.length === 0 && (
+            <div className="text-center py-8">
+              <Bot
+                size={32}
+                style={{ color: "var(--text-muted)", margin: "0 auto 8px" }}
+              />
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                Ask me anything about your code
+              </p>
+            </div>
+          )}
+
+          <AnimatePresence>
+            {messages.map((msg) => (
+              <motion.div
+                key={msg.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className={`flex ${
+                  msg.role === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
+                <div
+                  className="max-w-[92%] rounded text-xs ai-message"
+                  style={{
+                    background:
+                      msg.role === "user"
+                        ? "var(--accent)"
+                        : "var(--bg-activity)",
+                    color: msg.role === "user" ? "#fff" : "var(--text-primary)",
+                    padding: "8px 10px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {msg.id === streamingMsgId ? (
+                    <StreamingText
+                      content={pendingContent}
+                      onDone={() => setStreamingMsgId(null)}
+                    />
+                  ) : (
+                    renderMessage(
+                      msg.content,
+                      handleCopyCode,
+                      msg.role === "assistant" ? handleInsert : undefined,
+                    )
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {isTyping && (
+            <div className="flex justify-start">
               <div
-                className="absolute top-full left-0 mt-1 rounded shadow-lg z-50 py-1"
+                className="rounded px-3 py-2 text-xs"
                 style={{
                   background: "var(--bg-activity)",
-                  border: "1px solid var(--border)",
-                  minWidth: 110,
+                  color: "var(--text-muted)",
                 }}
               >
-                {MODELS.map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => {
-                      setSelectedModel(m);
-                      setShowModelMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-1.5 text-[10px] hover:bg-[var(--hover-item)] transition-colors"
-                    style={{
-                      color:
-                        m === selectedModel
-                          ? "var(--accent)"
-                          : "var(--text-secondary)",
-                    }}
+                <span className="inline-flex gap-1">
+                  <span
+                    className="animate-bounce"
+                    style={{ animationDelay: "0ms" }}
                   >
-                    {m === selectedModel ? "✓ " : "  "}
-                    {m}
-                  </button>
-                ))}
+                    .
+                  </span>
+                  <span
+                    className="animate-bounce"
+                    style={{ animationDelay: "150ms" }}
+                  >
+                    .
+                  </span>
+                  <span
+                    className="animate-bounce"
+                    style={{ animationDelay: "300ms" }}
+                  >
+                    .
+                  </span>
+                </span>
               </div>
-            )}
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Copy / Export toast */}
+        {copiedCode !== null && (
+          <div
+            className="mx-3 mb-1 px-2 py-1 rounded text-[10px] text-center flex items-center justify-center gap-1"
+            style={{
+              background: "#22c55e22",
+              color: "#22c55e",
+              border: "1px solid #22c55e44",
+            }}
+            data-ocid="ai.success_state"
+          >
+            <ClipboardCopy size={10} />
+            {copiedCode === "exported"
+              ? "Conversation exported!"
+              : "Copied to clipboard!"}
           </div>
-        </div>
+        )}
 
-        <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            onClick={handleExport}
-            className="p-1 rounded hover:bg-[var(--hover-item)] text-[var(--icon-inactive)] hover:text-[var(--text-primary)] transition-colors"
-            title="Export conversation as Markdown"
-            data-ocid="ai.save_button"
+        {/* Voice unsupported toast */}
+        {voiceUnsupported && (
+          <div
+            className="mx-3 mb-1 px-2 py-1 rounded text-[10px] text-center"
+            style={{
+              background: "rgba(244,71,71,0.1)",
+              color: "var(--error)",
+              border: "1px solid rgba(244,71,71,0.3)",
+            }}
+            data-ocid="ai.error_state"
           >
-            <Download size={11} />
-          </button>
-          <button
-            type="button"
-            onClick={handleClearSession}
-            className="p-1 rounded hover:bg-[var(--hover-item)] text-[var(--icon-inactive)] hover:text-[var(--text-primary)] transition-colors"
-            title="Clear session"
-            data-ocid="ai.delete_button"
-          >
-            <Trash2 size={11} />
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded hover:bg-[var(--hover-item)] text-[var(--icon-inactive)] hover:text-[var(--text-primary)] transition-colors"
-            data-ocid="ai.close_button"
-          >
-            <X size={11} />
-          </button>
-        </div>
-      </div>
+            Voice not supported in this browser
+          </div>
+        )}
 
-      {/* Session selector */}
-      <div
-        className="flex items-center gap-1 px-2 py-1 border-b border-[var(--border)] flex-shrink-0"
-        style={{ background: "var(--bg-editor)", minHeight: 30 }}
-      >
-        <div className="flex-1 flex items-center gap-1 overflow-x-auto">
-          {sessions.map((s) => (
+        {/* Quick action chips */}
+        <div
+          className="px-2 pt-1.5 pb-1 flex gap-1 flex-wrap border-t border-[var(--border)]"
+          style={{ background: "var(--bg-activity)" }}
+        >
+          {QUICK_PROMPTS.map((qp) => (
             <button
-              key={s.id}
               type="button"
-              onClick={() => setActiveSessionId(s.id)}
-              className="flex-shrink-0 px-2 py-0.5 rounded text-[9px] transition-colors"
+              key={qp.label}
+              onClick={() => handleQuickPrompt(qp.prompt)}
+              className="flex items-center px-1.5 py-0.5 rounded-full text-[9px] transition-colors hover:bg-[var(--hover-item)]"
               style={{
-                background:
-                  s.id === activeSessionId
-                    ? "rgba(0,122,204,0.15)"
-                    : "var(--bg-activity)",
-                border:
-                  s.id === activeSessionId
-                    ? "1px solid rgba(0,122,204,0.3)"
-                    : "1px solid var(--border)",
-                color:
-                  s.id === activeSessionId
-                    ? "var(--accent)"
-                    : "var(--text-muted)",
+                background: "var(--bg-input)",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border)",
               }}
-              data-ocid="ai.session.tab"
+              data-ocid={`ai.${qp.label.toLowerCase().replace(" ", "-")}.button`}
             >
-              {s.name}
+              {qp.label}
+            </button>
+          ))}
+          {/* Extra mode buttons */}
+          {EXTRA_PROMPTS.map((ep) => (
+            <button
+              type="button"
+              key={ep.label}
+              onClick={() => handleQuickPrompt(ep.prompt)}
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] transition-colors hover:bg-[var(--hover-item)]"
+              style={{
+                background: "rgba(0,122,204,0.1)",
+                color: "var(--accent)",
+                border: "1px solid rgba(0,122,204,0.25)",
+              }}
+              data-ocid={`ai.${ep.label.toLowerCase().replace(" ", "-")}.button`}
+            >
+              {ep.icon}
+              {ep.label}
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={handleNewSession}
-          className="flex-shrink-0 p-0.5 rounded hover:bg-[var(--hover-item)] transition-colors"
-          title="New session"
-          data-ocid="ai.open_modal_button"
-        >
-          <Plus size={11} style={{ color: "var(--accent)" }} />
-        </button>
-      </div>
 
-      {/* File context badge */}
-      {activeFile && (
+        {/* Input */}
         <div
-          className="px-3 py-1 flex-shrink-0"
-          style={{ background: "var(--bg-editor)" }}
+          className="p-2 flex-shrink-0"
+          style={{ background: "var(--bg-activity)" }}
         >
           <div
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px]"
-            style={{
-              background: "rgba(0,122,204,0.1)",
-              border: "1px solid rgba(0,122,204,0.25)",
-              color: "var(--accent)",
-            }}
+            className="flex items-end gap-1 rounded border border-[var(--border)] overflow-hidden"
+            style={{ background: "var(--bg-input)" }}
           >
-            <span>📄</span>
-            <span>{activeFile.name}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {messages.length === 0 && (
-          <div className="text-center py-8">
-            <Bot
-              size={32}
-              style={{ color: "var(--text-muted)", margin: "0 auto 8px" }}
-            />
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Ask me anything about your code
-            </p>
-          </div>
-        )}
-
-        <AnimatePresence>
-          {messages.map((msg) => (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              className={`flex ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <div
-                className="max-w-[92%] rounded text-xs ai-message"
-                style={{
-                  background:
-                    msg.role === "user"
-                      ? "var(--accent)"
-                      : "var(--bg-activity)",
-                  color: msg.role === "user" ? "#fff" : "var(--text-primary)",
-                  padding: "8px 10px",
-                  lineHeight: 1.6,
-                }}
-              >
-                {msg.id === streamingMsgId ? (
-                  <StreamingText
-                    content={pendingContent}
-                    onDone={() => setStreamingMsgId(null)}
-                  />
-                ) : (
-                  renderMessage(
-                    msg.content,
-                    handleCopyCode,
-                    msg.role === "assistant" ? handleInsert : undefined,
-                  )
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {isTyping && (
-          <div className="flex justify-start">
-            <div
-              className="rounded px-3 py-2 text-xs"
-              style={{
-                background: "var(--bg-activity)",
-                color: "var(--text-muted)",
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
               }}
-            >
-              <span className="inline-flex gap-1">
-                <span
-                  className="animate-bounce"
-                  style={{ animationDelay: "0ms" }}
-                >
-                  .
-                </span>
-                <span
-                  className="animate-bounce"
-                  style={{ animationDelay: "150ms" }}
-                >
-                  .
-                </span>
-                <span
-                  className="animate-bounce"
-                  style={{ animationDelay: "300ms" }}
-                >
-                  .
-                </span>
-              </span>
-            </div>
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Copy / Export toast */}
-      {copiedCode !== null && (
-        <div
-          className="mx-3 mb-1 px-2 py-1 rounded text-[10px] text-center flex items-center justify-center gap-1"
-          style={{
-            background: "#22c55e22",
-            color: "#22c55e",
-            border: "1px solid #22c55e44",
-          }}
-          data-ocid="ai.success_state"
-        >
-          <ClipboardCopy size={10} />
-          {copiedCode === "exported"
-            ? "Conversation exported!"
-            : "Copied to clipboard!"}
-        </div>
-      )}
-
-      {/* Quick action chips */}
-      <div
-        className="px-2 pt-1.5 pb-1 flex gap-1 flex-wrap border-t border-[var(--border)]"
-        style={{ background: "var(--bg-activity)" }}
-      >
-        {QUICK_PROMPTS.map((qp) => (
-          <button
-            type="button"
-            key={qp.label}
-            onClick={() => handleQuickPrompt(qp.prompt)}
-            className="flex items-center px-1.5 py-0.5 rounded-full text-[9px] transition-colors hover:bg-[var(--hover-item)]"
-            style={{
-              background: "var(--bg-input)",
-              color: "var(--text-secondary)",
-              border: "1px solid var(--border)",
-            }}
-            data-ocid={`ai.${qp.label.toLowerCase().replace(" ", "-")}.button`}
-          >
-            {qp.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Input */}
-      <div
-        className="p-2 flex-shrink-0"
-        style={{ background: "var(--bg-activity)" }}
-      >
-        <div
-          className="flex items-end gap-2 rounded border border-[var(--border)] overflow-hidden"
-          style={{ background: "var(--bg-input)" }}
-        >
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
+              placeholder={
+                isListening
+                  ? "Listening... speak now"
+                  : "Ask AI... (Enter to send)"
               }
-            }}
-            placeholder="Ask AI... (Enter to send)"
-            rows={2}
-            className="flex-1 bg-transparent text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none resize-none p-2"
-            style={{ fontFamily: "inherit", lineHeight: 1.5 }}
-            data-ocid="ai.textarea"
-          />
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={!input.trim() || isTyping}
-            className="p-2 m-1 rounded transition-colors disabled:opacity-40"
-            style={{ background: "var(--accent)", color: "#fff" }}
-            data-ocid="ai.submit_button"
-          >
-            <Send size={12} />
-          </button>
+              rows={2}
+              className="flex-1 bg-transparent text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none resize-none p-2"
+              style={{
+                fontFamily: "inherit",
+                lineHeight: 1.5,
+                color: isListening ? "#e5c07b" : undefined,
+              }}
+              data-ocid="ai.textarea"
+            />
+            {/* Voice button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={handleVoice}
+                  className="p-2 my-1 rounded transition-colors"
+                  style={{
+                    background: isListening
+                      ? "rgba(244,71,71,0.2)"
+                      : "transparent",
+                    color: isListening
+                      ? "var(--error)"
+                      : "var(--icon-inactive)",
+                    border: isListening
+                      ? "1px solid rgba(244,71,71,0.4)"
+                      : "1px solid transparent",
+                  }}
+                  data-ocid="ai.toggle"
+                >
+                  {isListening ? (
+                    <motion.span
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{
+                        repeat: Number.POSITIVE_INFINITY,
+                        duration: 0.8,
+                      }}
+                    >
+                      <MicOff size={12} />
+                    </motion.span>
+                  ) : (
+                    <Mic size={12} />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">
+                {isListening
+                  ? "Stop listening"
+                  : "Voice input (click to speak)"}
+              </TooltipContent>
+            </Tooltip>
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={!input.trim() || isTyping}
+              className="p-2 m-1 rounded transition-colors disabled:opacity-40"
+              style={{ background: "var(--accent)", color: "#fff" }}
+              data-ocid="ai.submit_button"
+            >
+              <Send size={12} />
+            </button>
+          </div>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </TooltipProvider>
   );
 };

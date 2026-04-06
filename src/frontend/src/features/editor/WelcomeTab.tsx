@@ -398,20 +398,6 @@ export const WelcomeTab: React.FC = () => {
               CodeVeda IDE v4.0 — Built with React 19 + Monaco Editor + ICP
             </p>
           </div>
-          <p
-            className="text-[10px] mt-1"
-            style={{ color: "var(--text-muted)" }}
-          >
-            &copy; {new Date().getFullYear()}. Built with ❤ using{" "}
-            <a
-              href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "var(--accent)" }}
-            >
-              caffeine.ai
-            </a>
-          </p>
         </div>
       </motion.div>
     </div>

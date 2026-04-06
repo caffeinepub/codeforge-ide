@@ -17,7 +17,9 @@ import {
 } from "../utils/fileSystemService";
 import type { ActivityTab } from "./ActivityBar";
 import { BookmarksPanel } from "./BookmarksPanel";
+import { CICDPanel } from "./CICDPanel";
 import { CloudFilesPanel } from "./CloudFilesPanel";
+import { CollaborationPanel } from "./CollaborationPanel";
 import { ExtensionsMarketplace } from "./ExtensionsMarketplace";
 import { GitHubPanel } from "./GitHubPanel";
 import { GitPanel } from "./GitPanel";
@@ -26,6 +28,8 @@ import { LivePreviewPanel } from "./LivePreviewPanel";
 import { NotesPanel } from "./NotesPanel";
 import { RecentFilesPanel } from "./RecentFilesPanel";
 import { SnippetsPanel } from "./SnippetsPanel";
+import { SocialCodingPanel } from "./SocialCodingPanel";
+import { VersionControlPanel } from "./VersionControlPanel";
 
 interface SidebarProps {
   activePanel: ActivityTab;
@@ -114,6 +118,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     bookmarks: <BookmarksPanel />,
     recent: <RecentFilesPanel />,
     cloud: <CloudFilesPanel />,
+    // Phase 9 panels
+    collab: <CollaborationPanel />,
+    social: <SocialCodingPanel />,
+    cicd: <CICDPanel />,
+    vcs: <VersionControlPanel />,
   };
 
   if (fullPanelMap[activePanel]) {

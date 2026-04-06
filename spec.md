@@ -1,67 +1,97 @@
-# CodeVeda — Phase 8: Advanced GitHub + AI Chat + Mobile-First Overhaul
+# CodeVeda — Phase 10: Profile & Settings Overhaul + Social/GitHub Integration
 
 ## Current State
-- Monaco Editor IDE with multi-tab editing, split panes, file explorer, themes
-- ActivityBar with 16 panels including GitHub (GitFork), AI Assistant (Bot), Terminal, Source Control
-- GitHubPanel: PAT-based auth, repo browser, branch switcher, PR list with status badges, push/pull/fetch ops
-- AIAssistantPanel: Chat sidebar with quick-action chips (Explain/Fix/Refactor/Generate/ICP), code blocks with copy buttons, persist via zustand
-- MobileBottomNav: Only 4 tabs (Explorer, Search, AI, Settings)
-- MobileHeader: Shows "CodeForge" (old name), basic hamburger + new file + command palette
-- StatusBar, Breadcrumbs, EditorToolbar all working
-- Backend: ICP canister with authorization, blob-storage for file/profile/settings persistence
+
+- `WelcomeTab.tsx` has a footer with the line: `© {year}. Built with ❤ using caffeine.ai` (lines 405–414)
+- `UserProfilePanel.tsx` has 3 tabs (overview, preferences, activity). Overview: name, bio, avatar color, save. Preferences: language, font size, theme, shortcuts. Activity: log list.
+- `SettingsPanel.tsx` has 2 tabs (editor, keybindings). Editor: themes, font size/family, tab size, toggles (wordWrap, minimap, lineNumbers, fontLigatures). Keybindings: searchable shortcut list.
+- `SocialCodingPanel.tsx` has Discover / Following / My Projects tabs with follow/unfollow logic and a share-project form with public/private visibility.
+- No profile picture / avatar image upload support.
+- No GitHub projects section in user profile.
+- No dedicated social links section in profile.
+- Settings panel has only 2 tabs and lacks many advanced options.
 
 ## Requested Changes (Diff)
 
 ### Add
-- **AI Chat Redesign**: Full ChatGPT-style conversational sidebar with:
-  - Conversation threads/history (multiple named sessions, switchable)
-  - File context badge — active file name auto-attached to every message
-  - "Insert into editor" button on AI code responses
-  - Conversation export (copy all as markdown)
-  - AI model selector display (GPT-4o / Claude / CodeLlama labels, cosmetic)
-  - Smarter canned responses for: test generation, docs generation, architecture, code review
-  - Typing animation with streamed character effect
-  - Keyboard shortcut: Ctrl+Shift+A to toggle AI panel
 
-- **GitHub Panel Upgrades**:
-  - Commit history timeline (visual list with SHA, message, author, time-ago)
-  - File diff viewer embedded inside panel (side-by-side or inline toggle)
-  - AI-powered PR review button (generates AI review comment)
-  - Commit message AI generator (button in commit area)
-  - Issues tab (list with open/closed filter, label badges)
-  - Commit staging area (checkboxes per file, commit message input, commit button)
+**WelcomeTab:**
+- Remove the entire `Built with ❤ using caffeine.ai` paragraph (keep the CodeVeda version line)
 
-- **Mobile-First Overhaul**:
-  - MobileBottomNav expanded to 5 tabs: Explorer, GitHub, AI, Terminal, Settings
-  - MobileHeader renamed to CodeVeda (not CodeForge)
-  - Floating AI FAB button (bottom-right corner) on all mobile screens
-  - Slide-in drawer for GitHub panel on mobile (full-height)
-  - Mobile-optimized AI chat (full-screen overlay on small screens)
-  - Swipe gestures hint overlays
-  - Mobile toolbar row below editor for: Undo, Redo, Tab, {}, [], () buttons (touch keyboard helpers)
+**UserProfilePanel — expanded to 5 tabs:**
+1. **Overview** (existing + enhancements):
+   - Profile picture upload: circular avatar that shows uploaded image OR initials fallback. Click to open file picker (accept image/*). Preview immediately, store as data-URL in state.
+   - Cover/banner color picker (6 color options) — decorative gradient header band above the avatar
+   - Username / handle field (e.g. @aryan_dev) — separate from display name
+   - Location field (text input)
+   - Website URL field
+   - Social links section: GitHub URL, Twitter/X URL, LinkedIn URL — each with icon + input
+   - Save Profile button persists all these fields
 
-- **Editor Enhancements**:
-  - Go to line (Ctrl+G) input in command palette
-  - Code action quick-fix tooltip (simulated lightbulb on errors)
-  - Multi-file find & replace (already has single-file, extend to multi)
+2. **GitHub Projects tab** (new):
+   - GitHub username input (pre-filled if set in overview)
+   - "Connect GitHub" button that fetches repos via GitHub public API (`https://api.github.com/users/{username}/repos`)
+   - List of repos: name, description, language dot, stars, forks, visibility badge (Public/Private via lock icon)
+   - Toggle visibility: user can mark any repo as "featured" (pinned to profile)
+   - Empty state if no GitHub username set
+
+3. **Followers/Following tab** (new):
+   - Two sub-tabs: Followers | Following
+   - List of mock follower/following developer cards (same style as SocialCodingPanel)
+   - Follow/Unfollow button on each card
+   - Follower count + Following count summary at top
+
+4. **Preferences** (existing, keep as-is)
+
+5. **Activity** (existing, keep as-is)
+
+**SettingsPanel — expanded from 2 tabs to 5 tabs:**
+1. **Editor** (existing — keep all current options)
+2. **Appearance** (new tab):
+   - UI Density: Compact / Default / Comfortable (3-way toggle)
+   - Sidebar position: Left / Right toggle
+   - Activity bar labels: Show/Hide toggle
+   - Editor cursor style: Block / Line / Underline selector
+   - Smooth scrolling: toggle
+   - Animations: toggle (reduce motion)
+   - Custom accent color: 6 preset color swatches + hex input
+3. **Privacy & Security** (new tab):
+   - Profile visibility: Public / Private toggle
+   - Show online status: toggle
+   - Show activity log to followers: toggle
+   - Two-factor auth notice (UI only, informational badge)
+   - Data export button (downloads JSON of profile as a blob)
+   - Danger zone: Delete account button (shows confirmation modal)
+4. **Notifications** (new tab):
+   - Email notifications toggle (disabled — email not available, shows tooltip)
+   - Push notifications toggle
+   - Notify on: follow (toggle), mention (toggle), PR review (toggle), CI/CD status (toggle)
+   - Notification sound: toggle
+5. **Keybindings** (existing — keep as-is)
 
 ### Modify
-- AIAssistantPanel: Full redesign to ChatGPT-style with conversation history, file context, insert-to-editor
-- GitHubPanel: Add tabs (Overview, Commits, Issues, Diff) with proper section navigation
-- MobileBottomNav: Add GitHub and Terminal tabs, 5 total tabs
-- MobileHeader: Fix branding from "CodeForge" to "CodeVeda"
-- ActivityBar: No structural changes needed
-- App.tsx: Wire new mobile tabs (github, terminal) to existing panels
+
+- `UserProfilePanel`: replace 3-tab layout with 5-tab layout (Overview, GitHub Projects, Followers/Following, Preferences, Activity). The panel width can expand slightly to `min(100vw, 540px)` to accommodate more content.
+- `SettingsPanel`: replace 2-tab layout with 5-tab layout. Keep existing editor and keybindings tabs. Add Appearance, Privacy & Security, Notifications tabs.
+- `SocialCodingPanel`: no changes needed here (profile follow flow already exists); the new Followers/Following tab in UserProfilePanel mirrors this.
 
 ### Remove
-- Nothing removed — all existing features preserved
+
+- The `Built with ❤ using caffeine.ai` paragraph block from `WelcomeTab.tsx` (lines ~405–414). Keep the CodeVeda version line above it.
 
 ## Implementation Plan
-1. **Redesign AIAssistantPanel** — conversation threads, file context, insert-to-editor, streaming animation, smarter responses for test/docs/arch/review
-2. **Upgrade GitHubPanel** — add Commits tab with history timeline, Issues tab, Diff viewer, AI commit message generator, AI PR review, staging area
-3. **Overhaul MobileBottomNav** — 5 tabs: Explorer, GitHub, AI, Terminal, Settings
-4. **Fix MobileHeader** — update CodeForge → CodeVeda branding
-5. **Add mobile floating AI FAB** — bottom-right overlay button for quick AI access on mobile
-6. **Add mobile editor touch toolbar** — row of touch-friendly code insertion buttons below Monaco on mobile
-7. **Wire App.tsx** — connect new mobile tabs to existing GitHubPanel and InteractiveTerminal
-8. **Add aiStore conversation threads** — extend aiStore to support named sessions/history
+
+1. **WelcomeTab.tsx** — remove the caffeine.ai attribution paragraph (3 lines of JSX). Keep `CodeVeda IDE v4.0 — Built with React 19 + Monaco Editor + ICP`.
+2. **UserProfilePanel.tsx** — full rewrite of the tab list and tab content:
+   - Change `activeTab` type to include `'github' | 'social'`
+   - Add state: `profilePicUrl`, `username`, `location`, `websiteUrl`, `githubUrl`, `twitterUrl`, `linkedinUrl`, `githubUsername`, `githubRepos`, `isFetchingRepos`
+   - Overview tab: add picture upload (file input, preview), handle/username field, location, website, social links
+   - GitHub Projects tab: input + fetch button + repo list with Public/Private badges
+   - Followers/Following tab: mock data (reuse DEVELOPERS from SocialCodingPanel style), sub-tab switcher, follow/unfollow
+   - Preserve Preferences and Activity tabs unchanged
+3. **SettingsPanel.tsx** — extend tab system:
+   - Change `activeTab` type to `'editor' | 'appearance' | 'privacy' | 'notifications' | 'keybindings'`
+   - Add state for all new settings fields
+   - Add Appearance, Privacy & Security, Notifications tab content panels
+   - Preserve editor and keybindings tabs unchanged
+4. No backend changes needed — all new fields are UI state only (can be wired to backend in a future phase).

@@ -15,13 +15,17 @@ import {
   Files,
   GitBranch,
   GitFork,
+  GitGraph,
   History,
   Puzzle,
   Scissors,
   Search,
   Settings,
+  Share2,
   Shield,
   User,
+  Users,
+  Workflow,
 } from "lucide-react";
 import type React from "react";
 import { useAuthStore } from "../stores/authStore";
@@ -42,7 +46,11 @@ export type ActivityTab =
   | "notes"
   | "bookmarks"
   | "recent"
-  | "cloud";
+  | "cloud"
+  | "collab"
+  | "social"
+  | "cicd"
+  | "vcs";
 
 interface ActivityBarProps {
   activePanel: ActivityTab;
@@ -58,6 +66,11 @@ const ITEMS: { id: ActivityTab; icon: React.ReactNode; label: string }[] = [
   { id: "snippets", icon: <Scissors size={22} />, label: "Snippets" },
   { id: "preview", icon: <Eye size={22} />, label: "Live Preview" },
   { id: "intelligence", icon: <Brain size={22} />, label: "Code Intelligence" },
+  // Phase 9: Collaboration & Social
+  { id: "collab", icon: <Users size={22} />, label: "Collaboration" },
+  { id: "social", icon: <Share2 size={22} />, label: "Social Coding" },
+  { id: "cicd", icon: <Workflow size={22} />, label: "CI/CD Pipeline" },
+  { id: "vcs", icon: <GitGraph size={22} />, label: "Version Control" },
   // Cloud-backed panels
   { id: "notes", icon: <FileText size={22} />, label: "Scratch Pad" },
   { id: "bookmarks", icon: <Bookmark size={22} />, label: "Bookmarks" },
