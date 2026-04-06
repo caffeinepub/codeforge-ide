@@ -1,6 +1,10 @@
-import { X } from "lucide-react";
+import { CloudUpload, Loader2, X } from "lucide-react";
 import type React from "react";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { useActor } from "../../hooks/useActor";
+import { saveCloudFile } from "../../services/backendService";
+import { useAuthStore } from "../../stores/authStore";
 import { useEditorStore } from "../../stores/editorStore";
 import { FileIcon } from "../filesystem/FileIcon";
 
@@ -15,7 +19,10 @@ export const EditorTabs: React.FC<EditorTabsProps> = ({
   onTabSelect,
 }) => {
   const { openFiles, closeFile, reorderTabs } = useEditorStore();
+  const { actor } = useActor();
+  const { isLoggedIn } = useAuthStore();
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [savingToCloud, setSavingToCloud] = useState<string | null>(null);
   const dragIndexRef = useRef<number | null>(null);
 
   const handleDragStart = (index: number) => {
@@ -44,6 +51,31 @@ export const EditorTabs: React.FC<EditorTabsProps> = ({
   const handleClose = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     closeFile(id);
+  };
+
+  const handleSaveToCloud = async (
+    e: React.MouseEvent,
+    file: (typeof openFiles)[0],
+  ) => {
+    e.stopPropagation();
+    if (!actor || !isLoggedIn) {
+      toast.error("Login to save files to cloud");
+      return;
+    }
+    setSavingToCloud(file.id);
+    const ok = await saveCloudFile(actor, {
+      name: file.name,
+      path: file.path,
+      content: file.content,
+      language: file.language,
+      lastModified: BigInt(Date.now()),
+    });
+    setSavingToCloud(null);
+    if (ok) {
+      toast.success(`"${file.name}" saved to cloud ☁`);
+    } else {
+      toast.error("Failed to save to cloud");
+    }
   };
 
   if (openFiles.length === 0) {
@@ -77,7 +109,7 @@ export const EditorTabs: React.FC<EditorTabsProps> = ({
             role="tab"
             tabIndex={0}
             aria-selected={isActive}
-            className={`flex items-center gap-1.5 px-3 h-full cursor-pointer flex-shrink-0 border-r border-[var(--border)] group relative transition-colors
+            className={`flex items-center gap-1 px-2 h-full cursor-pointer flex-shrink-0 border-r border-[var(--border)] group relative transition-colors
               ${
                 isActive
                   ? "bg-[var(--bg-tab-active)] border-t-[2px] border-t-[var(--accent)]"
@@ -99,6 +131,22 @@ export const EditorTabs: React.FC<EditorTabsProps> = ({
             >
               {file.name}
             </span>
+
+            {/* Cloud save button — shows on hover */}
+            <button
+              type="button"
+              className="opacity-0 group-hover:opacity-100 w-4 h-4 rounded flex items-center justify-center hover:bg-[var(--hover-item)] text-[var(--text-muted)] hover:text-[var(--accent)] flex-shrink-0 transition-all"
+              onClick={(e) => handleSaveToCloud(e, file)}
+              title="Save to cloud"
+              data-ocid={`editor.upload_button.${index + 1}`}
+            >
+              {savingToCloud === file.id ? (
+                <Loader2 size={9} className="animate-spin" />
+              ) : (
+                <CloudUpload size={9} />
+              )}
+            </button>
+
             <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
               {file.isDirty ? (
                 <span

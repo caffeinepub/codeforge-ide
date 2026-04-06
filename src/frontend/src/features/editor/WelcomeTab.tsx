@@ -1,4 +1,17 @@
-import { Clock, Keyboard, Plus, Terminal } from "lucide-react";
+import {
+  Bot,
+  Brain,
+  FileCode,
+  GitBranch,
+  Keyboard,
+  Layers,
+  Monitor,
+  MousePointer2,
+  Plus,
+  Shield,
+  Terminal,
+  Zap,
+} from "lucide-react";
 import { motion } from "motion/react";
 import type React from "react";
 import { useIsMobile } from "../../hooks/use-mobile";
@@ -9,14 +22,34 @@ import {
 } from "../filesystem/mockFileSystem";
 
 const RECENT_FILES = [
-  { name: "Button.tsx", path: "src/components/Button.tsx", id: "file-button" },
+  {
+    name: "Button.tsx",
+    path: "src/components/Button.tsx",
+    id: "file-button",
+    lang: "tsx",
+    color: "#61dafb",
+  },
   {
     name: "Dashboard.tsx",
     path: "src/pages/Dashboard.tsx",
     id: "file-dashboard",
+    lang: "tsx",
+    color: "#61dafb",
   },
-  { name: "main.mo", path: "backend/canisters/main.mo", id: "file-mainmo" },
-  { name: "useAuth.ts", path: "src/hooks/useAuth.ts", id: "file-useauth" },
+  {
+    name: "main.mo",
+    path: "backend/canisters/main.mo",
+    id: "file-mainmo",
+    lang: "mo",
+    color: "#f7c948",
+  },
+  {
+    name: "useAuth.ts",
+    path: "src/hooks/useAuth.ts",
+    id: "file-useauth",
+    lang: "ts",
+    color: "#4ec9b0",
+  },
 ];
 
 const SHORTCUTS = [
@@ -27,9 +60,35 @@ const SHORTCUTS = [
   { key: "Ctrl+B", action: "Toggle Sidebar" },
   { key: "Ctrl+`", action: "Toggle Terminal" },
   { key: "Ctrl+\\", action: "Split Editor" },
-  { key: "Ctrl+Z", action: "Undo" },
+  { key: "Ctrl+Shift+F11", action: "Focus Mode" },
+  { key: "Shift+?", action: "Keyboard Overlay" },
   { key: "Ctrl+H", action: "Find & Replace" },
-  { key: "Ctrl+F", action: "Find in File" },
+];
+
+const PHASE4_FEATURES = [
+  { icon: <Brain size={12} />, label: "Code Intelligence", color: "#c678dd" },
+  { icon: <Zap size={12} />, label: "Focus Mode", color: "#f7c948" },
+  { icon: <Layers size={12} />, label: "3 New Themes", color: "#4ec9b0" },
+  {
+    icon: <Bot size={12} />,
+    label: "AI Quick Actions",
+    color: "var(--accent)",
+  },
+  { icon: <Shield size={12} />, label: "Keyboard Overlay", color: "#e06c75" },
+  { icon: <GitBranch size={12} />, label: "Live Collab", color: "#22c55e" },
+  { icon: <Monitor size={12} />, label: "Performance Tab", color: "#fd971f" },
+  {
+    icon: <MousePointer2 size={12} />,
+    label: "Context Menus",
+    color: "#61afef",
+  },
+];
+
+const STATS = [
+  { label: "Files", value: "12", color: "#61dafb" },
+  { label: "Extensions", value: "8", color: "#c678dd" },
+  { label: "Themes", value: "8", color: "#f7c948" },
+  { label: "Lines", value: "2.4k", color: "#22c55e" },
 ];
 
 export const WelcomeTab: React.FC = () => {
@@ -54,7 +113,7 @@ export const WelcomeTab: React.FC = () => {
       id,
       name: "untitled.ts",
       path: "untitled.ts",
-      content: "",
+      content: "// TODO: Start coding here\n",
       language: "typescript",
       isDirty: false,
     });
@@ -62,7 +121,7 @@ export const WelcomeTab: React.FC = () => {
 
   return (
     <div
-      className="flex-1 overflow-y-auto flex flex-col items-center justify-start p-6 md:p-12"
+      className="flex-1 overflow-y-auto flex flex-col items-center justify-start p-6 md:p-10"
       style={{ background: "var(--bg-editor)" }}
     >
       <motion.div
@@ -71,34 +130,132 @@ export const WelcomeTab: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className="mb-8 md:mb-12 text-center">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div
-              className="w-14 h-14 rounded-lg flex items-center justify-center text-2xl"
-              style={{
-                background: "var(--accent)",
-                boxShadow: "0 0 32px var(--accent)44",
-              }}
+        {/* Hero Section */}
+        <div
+          className="hero-blob rounded-xl mb-8 p-8 text-center relative overflow-hidden"
+          style={{ border: "1px solid rgba(97,218,251,0.1)" }}
+        >
+          <div className="relative z-10">
+            <motion.div
+              className="flex items-center justify-center gap-3 mb-5"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
             >
-              &#9889;
-            </div>
+              <div
+                className="w-16 h-16 rounded-xl flex items-center justify-center"
+                style={{
+                  background: "linear-gradient(135deg, #007acc, #61dafb)",
+                  boxShadow: "0 0 40px rgba(0,122,204,0.4)",
+                }}
+              >
+                <Zap size={28} color="#fff" />
+              </div>
+            </motion.div>
+
+            <motion.h1
+              className="text-4xl md:text-5xl font-bold mb-2"
+              style={{
+                background: "linear-gradient(90deg, #007acc, #61dafb, #c678dd)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                letterSpacing: "-1px",
+              }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+            >
+              CodeVeda
+            </motion.h1>
+
+            <motion.p
+              className="text-sm md:text-base mb-1"
+              style={{ color: "var(--text-secondary)" }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.3 }}
+            >
+              Phase 4 — Elite browser IDE for the Internet Computer
+            </motion.p>
+            <motion.p
+              className="text-xs"
+              style={{ color: "var(--text-muted)" }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.35 }}
+            >
+              Powered by Monaco Editor · React 19 · ICP
+            </motion.p>
           </div>
-          <h1
-            className="text-3xl md:text-4xl font-bold mb-2"
-            style={{ color: "var(--text-primary)" }}
-          >
-            CodeForge IDE
-          </h1>
-          <p
-            className="text-sm md:text-base"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            A VS Code-like editor for the Web, powered by Internet Computer
-            Protocol
-          </p>
         </div>
 
+        {/* Stats Row */}
+        <motion.div
+          className="grid grid-cols-4 gap-3 mb-8"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
+          {STATS.map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-lg p-3 flex flex-col items-center gap-1"
+              style={{
+                background: "var(--bg-sidebar)",
+                borderLeft: `3px solid ${stat.color}`,
+                border: "1px solid var(--border)",
+                borderLeftColor: stat.color,
+              }}
+            >
+              <span
+                className="text-lg font-bold"
+                style={{ color: stat.color, lineHeight: 1 }}
+              >
+                {stat.value}
+              </span>
+              <span
+                className="text-[10px]"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {stat.label}
+              </span>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* Phase 4 Feature Chips */}
+        <motion.div
+          className="mb-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
+          <p
+            className="text-[10px] font-semibold uppercase tracking-wider mb-3 text-center"
+            style={{ color: "var(--text-muted)" }}
+          >
+            ✨ What&apos;s New in Phase 4
+          </p>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {PHASE4_FEATURES.map((feat) => (
+              <span
+                key={feat.label}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium border"
+                style={{
+                  borderColor: `${feat.color}44`,
+                  background: `${feat.color}11`,
+                  color: feat.color,
+                }}
+              >
+                {feat.icon} {feat.label}
+              </span>
+            ))}
+          </div>
+        </motion.div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Start + Recent */}
           <div>
             <h2
               className="text-xs font-semibold uppercase tracking-wider mb-3"
@@ -124,14 +281,25 @@ export const WelcomeTab: React.FC = () => {
               <button
                 type="button"
                 className="flex items-center gap-3 w-full px-3 py-2 rounded text-left hover:bg-[var(--hover-item)] transition-colors"
-                onClick={() => {}}
               >
-                <Terminal size={16} style={{ color: "var(--accent)" }} />
+                <Terminal size={16} style={{ color: "#22c55e" }} />
                 <span
                   className="text-sm"
                   style={{ color: "var(--text-primary)" }}
                 >
                   Open Terminal
+                </span>
+              </button>
+              <button
+                type="button"
+                className="flex items-center gap-3 w-full px-3 py-2 rounded text-left hover:bg-[var(--hover-item)] transition-colors"
+              >
+                <GitBranch size={16} style={{ color: "#f7c948" }} />
+                <span
+                  className="text-sm"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  Clone Repository
                 </span>
               </button>
             </div>
@@ -150,7 +318,18 @@ export const WelcomeTab: React.FC = () => {
                   className="flex items-center gap-3 w-full px-3 py-2 rounded text-left hover:bg-[var(--hover-item)] transition-colors"
                   onClick={() => handleOpenRecent(file)}
                 >
-                  <Clock size={14} style={{ color: "var(--icon-inactive)" }} />
+                  <span
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                    style={{
+                      background: `${file.color}22`,
+                      color: file.color,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      minWidth: 28,
+                      textAlign: "center",
+                    }}
+                  >
+                    {file.lang}
+                  </span>
                   <div className="flex-1 min-w-0">
                     <div
                       className="text-sm truncate"
@@ -170,7 +349,7 @@ export const WelcomeTab: React.FC = () => {
             </div>
           </div>
 
-          {/* Shortcuts — hidden on mobile */}
+          {/* Shortcuts */}
           {!isMobile && (
             <div>
               <h2
@@ -181,11 +360,11 @@ export const WelcomeTab: React.FC = () => {
                   <Keyboard size={12} /> Shortcuts
                 </span>
               </h2>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {SHORTCUTS.map(({ key, action }) => (
                   <div
                     key={key}
-                    className="flex items-center justify-between px-3 py-1.5"
+                    className="flex items-center justify-between px-3 py-1.5 rounded hover:bg-[var(--hover-item)] transition-colors"
                   >
                     <span
                       className="text-xs"
@@ -199,7 +378,7 @@ export const WelcomeTab: React.FC = () => {
                         background: "var(--bg-tab-inactive)",
                         borderColor: "var(--border)",
                         color: "var(--text-primary)",
-                        fontFamily: "monospace",
+                        fontFamily: "'JetBrains Mono', monospace",
                       }}
                     >
                       {key}
@@ -211,10 +390,27 @@ export const WelcomeTab: React.FC = () => {
           )}
         </div>
 
-        <div className="mt-8 md:mt-12 text-center border-t border-[var(--border)] pt-6">
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Phase 2: AI Assistant, Extensions Marketplace, Cloud Sync,
-            Collaborative Editing
+        {/* Footer */}
+        <div className="mt-8 text-center border-t border-[var(--border)] pt-6">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <FileCode size={12} style={{ color: "var(--text-muted)" }} />
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              CodeVeda IDE v4.0 — Built with React 19 + Monaco Editor + ICP
+            </p>
+          </div>
+          <p
+            className="text-[10px] mt-1"
+            style={{ color: "var(--text-muted)" }}
+          >
+            &copy; {new Date().getFullYear()}. Built with ❤ using{" "}
+            <a
+              href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: "var(--accent)" }}
+            >
+              caffeine.ai
+            </a>
           </p>
         </div>
       </motion.div>

@@ -1,7 +1,15 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type IDETheme = "dark" | "light" | "high-contrast";
+export type IDETheme =
+  | "dark"
+  | "light"
+  | "high-contrast"
+  | "monokai"
+  | "solarized-dark"
+  | "dracula"
+  | "nord"
+  | "one-dark";
 
 interface ThemeStore {
   theme: IDETheme;

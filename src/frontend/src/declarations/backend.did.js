@@ -8,14 +8,230 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const _CaffeineStorageCreateCertificateResult = IDL.Record({
+  'method' : IDL.Text,
+  'blob_hash' : IDL.Text,
+});
+export const _CaffeineStorageRefillInformation = IDL.Record({
+  'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+});
+export const _CaffeineStorageRefillResult = IDL.Record({
+  'success' : IDL.Opt(IDL.Bool),
+  'topped_up_amount' : IDL.Opt(IDL.Nat),
+});
+export const Bookmark = IDL.Record({
+  'filePath' : IDL.Text,
+  'lineNumber' : IDL.Int,
+  'annotation' : IDL.Text,
+  'timestamp' : IDL.Int,
+});
+export const CodeSnippet = IDL.Record({
+  'code' : IDL.Text,
+  'name' : IDL.Text,
+  'tags' : IDL.Vec(IDL.Text),
+  'description' : IDL.Text,
+  'language' : IDL.Text,
+});
+export const UserRole = IDL.Variant({
+  'admin' : IDL.Null,
+  'user' : IDL.Null,
+  'guest' : IDL.Null,
+});
+export const CodeFile = IDL.Record({
+  'content' : IDL.Text,
+  'name' : IDL.Text,
+  'path' : IDL.Text,
+  'lastModified' : IDL.Int,
+  'language' : IDL.Text,
+});
+export const ProjectMetadata = IDL.Record({
+  'projectName' : IDL.Text,
+  'projectDescription' : IDL.Text,
+  'lastOpened' : IDL.Int,
+});
+export const UserProfile = IDL.Record({
+  'bio' : IDL.Text,
+  'preferredLanguage' : IDL.Text,
+  'displayName' : IDL.Text,
+  'avatarColor' : IDL.Text,
+});
+
 export const idlService = IDL.Service({
-  'healthCheck' : IDL.Func([], [IDL.Text], ['query']),
+  '_caffeineStorageBlobIsLive' : IDL.Func(
+      [IDL.Vec(IDL.Nat8)],
+      [IDL.Bool],
+      ['query'],
+    ),
+  '_caffeineStorageBlobsToDelete' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      ['query'],
+    ),
+  '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      [],
+      [],
+    ),
+  '_caffeineStorageCreateCertificate' : IDL.Func(
+      [IDL.Text],
+      [_CaffeineStorageCreateCertificateResult],
+      [],
+    ),
+  '_caffeineStorageRefillCashier' : IDL.Func(
+      [IDL.Opt(_CaffeineStorageRefillInformation)],
+      [_CaffeineStorageRefillResult],
+      [],
+    ),
+  '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
+  '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'addBookmark' : IDL.Func([Bookmark], [], []),
+  'addCodeSnippet' : IDL.Func([CodeSnippet], [], []),
+  'addToSessionHistory' : IDL.Func([IDL.Text], [], []),
+  'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'clearSessionHistory' : IDL.Func([], [], []),
+  'deleteBookmark' : IDL.Func([IDL.Int], [], []),
+  'deleteFile' : IDL.Func([IDL.Text], [], []),
+  'deleteProject' : IDL.Func([IDL.Text], [], []),
+  'deleteSnippet' : IDL.Func([IDL.Text], [], []),
+  'getAllBookmarks' : IDL.Func([], [IDL.Vec(Bookmark)], ['query']),
+  'getAllFiles' : IDL.Func([], [IDL.Vec(CodeFile)], ['query']),
+  'getAllProjects' : IDL.Func([], [IDL.Vec(ProjectMetadata)], ['query']),
+  'getAllSnippets' : IDL.Func([], [IDL.Vec(CodeSnippet)], ['query']),
+  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+  'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+  'getCodeSnippet' : IDL.Func([IDL.Text], [IDL.Opt(CodeSnippet)], ['query']),
+  'getEditorSettings' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
+  'getFile' : IDL.Func([IDL.Text], [IDL.Opt(CodeFile)], ['query']),
+  'getProject' : IDL.Func([IDL.Text], [IDL.Opt(ProjectMetadata)], ['query']),
+  'getScratchPad' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
+  'getSessionHistory' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
+  'getUserProfile' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Opt(UserProfile)],
+      ['query'],
+    ),
+  'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'saveEditorSettings' : IDL.Func([IDL.Text], [], []),
+  'saveFile' : IDL.Func([CodeFile], [], []),
+  'saveProject' : IDL.Func([ProjectMetadata], [], []),
+  'saveScratchPad' : IDL.Func([IDL.Text], [], []),
+  'saveUserProfile' : IDL.Func([UserProfile], [], []),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
-  return IDL.Service({ 'healthCheck' : IDL.Func([], [IDL.Text], ['query']) });
+  const _CaffeineStorageCreateCertificateResult = IDL.Record({
+    'method' : IDL.Text,
+    'blob_hash' : IDL.Text,
+  });
+  const _CaffeineStorageRefillInformation = IDL.Record({
+    'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+  });
+  const _CaffeineStorageRefillResult = IDL.Record({
+    'success' : IDL.Opt(IDL.Bool),
+    'topped_up_amount' : IDL.Opt(IDL.Nat),
+  });
+  const Bookmark = IDL.Record({
+    'filePath' : IDL.Text,
+    'lineNumber' : IDL.Int,
+    'annotation' : IDL.Text,
+    'timestamp' : IDL.Int,
+  });
+  const CodeSnippet = IDL.Record({
+    'code' : IDL.Text,
+    'name' : IDL.Text,
+    'tags' : IDL.Vec(IDL.Text),
+    'description' : IDL.Text,
+    'language' : IDL.Text,
+  });
+  const UserRole = IDL.Variant({
+    'admin' : IDL.Null,
+    'user' : IDL.Null,
+    'guest' : IDL.Null,
+  });
+  const CodeFile = IDL.Record({
+    'content' : IDL.Text,
+    'name' : IDL.Text,
+    'path' : IDL.Text,
+    'lastModified' : IDL.Int,
+    'language' : IDL.Text,
+  });
+  const ProjectMetadata = IDL.Record({
+    'projectName' : IDL.Text,
+    'projectDescription' : IDL.Text,
+    'lastOpened' : IDL.Int,
+  });
+  const UserProfile = IDL.Record({
+    'bio' : IDL.Text,
+    'preferredLanguage' : IDL.Text,
+    'displayName' : IDL.Text,
+    'avatarColor' : IDL.Text,
+  });
+  
+  return IDL.Service({
+    '_caffeineStorageBlobIsLive' : IDL.Func(
+        [IDL.Vec(IDL.Nat8)],
+        [IDL.Bool],
+        ['query'],
+      ),
+    '_caffeineStorageBlobsToDelete' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        ['query'],
+      ),
+    '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        [],
+        [],
+      ),
+    '_caffeineStorageCreateCertificate' : IDL.Func(
+        [IDL.Text],
+        [_CaffeineStorageCreateCertificateResult],
+        [],
+      ),
+    '_caffeineStorageRefillCashier' : IDL.Func(
+        [IDL.Opt(_CaffeineStorageRefillInformation)],
+        [_CaffeineStorageRefillResult],
+        [],
+      ),
+    '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
+    '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'addBookmark' : IDL.Func([Bookmark], [], []),
+    'addCodeSnippet' : IDL.Func([CodeSnippet], [], []),
+    'addToSessionHistory' : IDL.Func([IDL.Text], [], []),
+    'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'clearSessionHistory' : IDL.Func([], [], []),
+    'deleteBookmark' : IDL.Func([IDL.Int], [], []),
+    'deleteFile' : IDL.Func([IDL.Text], [], []),
+    'deleteProject' : IDL.Func([IDL.Text], [], []),
+    'deleteSnippet' : IDL.Func([IDL.Text], [], []),
+    'getAllBookmarks' : IDL.Func([], [IDL.Vec(Bookmark)], ['query']),
+    'getAllFiles' : IDL.Func([], [IDL.Vec(CodeFile)], ['query']),
+    'getAllProjects' : IDL.Func([], [IDL.Vec(ProjectMetadata)], ['query']),
+    'getAllSnippets' : IDL.Func([], [IDL.Vec(CodeSnippet)], ['query']),
+    'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+    'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+    'getCodeSnippet' : IDL.Func([IDL.Text], [IDL.Opt(CodeSnippet)], ['query']),
+    'getEditorSettings' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
+    'getFile' : IDL.Func([IDL.Text], [IDL.Opt(CodeFile)], ['query']),
+    'getProject' : IDL.Func([IDL.Text], [IDL.Opt(ProjectMetadata)], ['query']),
+    'getScratchPad' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
+    'getSessionHistory' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
+    'getUserProfile' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Opt(UserProfile)],
+        ['query'],
+      ),
+    'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'saveEditorSettings' : IDL.Func([IDL.Text], [], []),
+    'saveFile' : IDL.Func([CodeFile], [], []),
+    'saveProject' : IDL.Func([ProjectMetadata], [], []),
+    'saveScratchPad' : IDL.Func([IDL.Text], [], []),
+    'saveUserProfile' : IDL.Func([UserProfile], [], []),
+  });
 };
 
 export const init = ({ IDL }) => { return []; };

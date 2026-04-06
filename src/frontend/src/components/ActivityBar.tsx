@@ -4,10 +4,45 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Bot, Files, Puzzle, Search, Settings } from "lucide-react";
+import {
+  Bookmark,
+  Bot,
+  Brain,
+  Cloud,
+  Crown,
+  Eye,
+  FileText,
+  Files,
+  GitBranch,
+  GitFork,
+  History,
+  Puzzle,
+  Scissors,
+  Search,
+  Settings,
+  Shield,
+  User,
+} from "lucide-react";
 import type React from "react";
+import { useAuthStore } from "../stores/authStore";
 
-type ActivityTab = "explorer" | "search" | "extensions" | "settings" | "ai";
+export type ActivityTab =
+  | "explorer"
+  | "search"
+  | "extensions"
+  | "settings"
+  | "ai"
+  | "git"
+  | "github"
+  | "snippets"
+  | "preview"
+  | "admin"
+  | "profile"
+  | "intelligence"
+  | "notes"
+  | "bookmarks"
+  | "recent"
+  | "cloud";
 
 interface ActivityBarProps {
   activePanel: ActivityTab;
@@ -17,7 +52,17 @@ interface ActivityBarProps {
 const ITEMS: { id: ActivityTab; icon: React.ReactNode; label: string }[] = [
   { id: "explorer", icon: <Files size={22} />, label: "Explorer" },
   { id: "search", icon: <Search size={22} />, label: "Search" },
+  { id: "git", icon: <GitBranch size={22} />, label: "Source Control" },
+  { id: "github", icon: <GitFork size={22} />, label: "GitHub" },
   { id: "extensions", icon: <Puzzle size={22} />, label: "Extensions" },
+  { id: "snippets", icon: <Scissors size={22} />, label: "Snippets" },
+  { id: "preview", icon: <Eye size={22} />, label: "Live Preview" },
+  { id: "intelligence", icon: <Brain size={22} />, label: "Code Intelligence" },
+  // Cloud-backed panels
+  { id: "notes", icon: <FileText size={22} />, label: "Scratch Pad" },
+  { id: "bookmarks", icon: <Bookmark size={22} />, label: "Bookmarks" },
+  { id: "recent", icon: <History size={22} />, label: "Recent Files" },
+  { id: "cloud", icon: <Cloud size={22} />, label: "Cloud Files" },
 ];
 
 const BOTTOM_ITEMS: {
@@ -26,6 +71,8 @@ const BOTTOM_ITEMS: {
   label: string;
 }[] = [
   { id: "ai", icon: <Bot size={22} />, label: "AI Assistant" },
+  { id: "admin", icon: <Crown size={22} />, label: "Admin Dashboard" },
+  { id: "profile", icon: <User size={22} />, label: "Profile" },
   { id: "settings", icon: <Settings size={22} />, label: "Settings" },
 ];
 
@@ -33,69 +80,68 @@ export const ActivityBar: React.FC<ActivityBarProps> = ({
   activePanel,
   onPanelChange,
 }) => {
+  const { isAdmin } = useAuthStore();
+
+  const renderButton = (
+    item: { id: ActivityTab; icon: React.ReactNode; label: string },
+    disabled = false,
+    overrideIcon?: React.ReactNode,
+  ) => {
+    const isActive = activePanel === item.id && !disabled;
+    return (
+      <Tooltip key={item.id}>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className={`w-10 h-10 mx-1 flex items-center justify-center transition-all rounded-md ${
+              disabled
+                ? "opacity-30 cursor-not-allowed"
+                : isActive
+                  ? "text-[var(--icon-active)]"
+                  : "text-[var(--icon-inactive)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-item)]"
+            }`}
+            style={
+              isActive
+                ? {
+                    background: "rgba(0,122,204,0.15)",
+                    boxShadow:
+                      "0 0 8px 2px color-mix(in srgb, var(--accent) 30%, transparent)",
+                  }
+                : {}
+            }
+            onClick={() => !disabled && onPanelChange(item.id)}
+            data-ocid={`activitybar.${item.id}.button`}
+          >
+            {overrideIcon ?? item.icon}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="text-xs">
+          {disabled ? "Admin Only" : item.label}
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
   return (
     <TooltipProvider delayDuration={200}>
       <div
-        className="flex flex-col items-center py-2 flex-shrink-0 border-r border-[var(--border)]"
+        className="activity-bar flex flex-col items-center py-2 flex-shrink-0 border-r border-[var(--border)] overflow-y-auto scrollbar-none"
         style={{ width: 48, background: "var(--bg-activity)", zIndex: 10 }}
       >
         <div className="flex flex-col items-center gap-0.5 flex-1">
-          {ITEMS.map((item) => (
-            <Tooltip key={item.id}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className={`w-12 h-12 flex items-center justify-center relative transition-colors ${
-                    activePanel === item.id
-                      ? "text-[var(--icon-active)]"
-                      : "text-[var(--icon-inactive)] hover:text-[var(--text-primary)]"
-                  }`}
-                  onClick={() => onPanelChange(item.id)}
-                  data-ocid={`activitybar.${item.id}.button`}
-                >
-                  {activePanel === item.id && (
-                    <span
-                      className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r"
-                      style={{ background: "var(--icon-active)" }}
-                    />
-                  )}
-                  {item.icon}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="text-xs">
-                {item.label}
-              </TooltipContent>
-            </Tooltip>
-          ))}
+          {ITEMS.map((item) => renderButton(item))}
         </div>
+
         <div className="flex flex-col items-center gap-0.5">
-          {BOTTOM_ITEMS.map((item) => (
-            <Tooltip key={item.id}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className={`w-12 h-12 flex items-center justify-center relative transition-colors ${
-                    activePanel === item.id
-                      ? "text-[var(--icon-active)]"
-                      : "text-[var(--icon-inactive)] hover:text-[var(--text-primary)]"
-                  }`}
-                  onClick={() => onPanelChange(item.id)}
-                  data-ocid={`activitybar.${item.id}.button`}
-                >
-                  {activePanel === item.id && (
-                    <span
-                      className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r"
-                      style={{ background: "var(--icon-active)" }}
-                    />
-                  )}
-                  {item.icon}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="text-xs">
-                {item.label}
-              </TooltipContent>
-            </Tooltip>
-          ))}
+          {BOTTOM_ITEMS.map((item) => {
+            const isAdminItem = item.id === "admin";
+            const disabled = isAdminItem && !isAdmin;
+            const overrideIcon =
+              isAdminItem && isAdmin ? (
+                <Shield size={22} style={{ color: "var(--warning)" }} />
+              ) : undefined;
+            return renderButton(item, disabled, overrideIcon);
+          })}
         </div>
       </div>
     </TooltipProvider>

@@ -10,7 +10,98 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
-export interface _SERVICE { 'healthCheck' : ActorMethod<[], string> }
+export interface Bookmark {
+  'filePath' : string,
+  'lineNumber' : bigint,
+  'annotation' : string,
+  'timestamp' : bigint,
+}
+export interface CodeFile {
+  'content' : string,
+  'name' : string,
+  'path' : string,
+  'lastModified' : bigint,
+  'language' : string,
+}
+export interface CodeSnippet {
+  'code' : string,
+  'name' : string,
+  'tags' : Array<string>,
+  'description' : string,
+  'language' : string,
+}
+export interface ProjectMetadata {
+  'projectName' : string,
+  'projectDescription' : string,
+  'lastOpened' : bigint,
+}
+export interface UserProfile {
+  'bio' : string,
+  'preferredLanguage' : string,
+  'displayName' : string,
+  'avatarColor' : string,
+}
+export type UserRole = { 'admin' : null } |
+  { 'user' : null } |
+  { 'guest' : null };
+export interface _CaffeineStorageCreateCertificateResult {
+  'method' : string,
+  'blob_hash' : string,
+}
+export interface _CaffeineStorageRefillInformation {
+  'proposed_top_up_amount' : [] | [bigint],
+}
+export interface _CaffeineStorageRefillResult {
+  'success' : [] | [boolean],
+  'topped_up_amount' : [] | [bigint],
+}
+export interface _SERVICE {
+  '_caffeineStorageBlobIsLive' : ActorMethod<[Uint8Array], boolean>,
+  '_caffeineStorageBlobsToDelete' : ActorMethod<[], Array<Uint8Array>>,
+  '_caffeineStorageConfirmBlobDeletion' : ActorMethod<
+    [Array<Uint8Array>],
+    undefined
+  >,
+  '_caffeineStorageCreateCertificate' : ActorMethod<
+    [string],
+    _CaffeineStorageCreateCertificateResult
+  >,
+  '_caffeineStorageRefillCashier' : ActorMethod<
+    [[] | [_CaffeineStorageRefillInformation]],
+    _CaffeineStorageRefillResult
+  >,
+  '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
+  '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  'addBookmark' : ActorMethod<[Bookmark], undefined>,
+  'addCodeSnippet' : ActorMethod<[CodeSnippet], undefined>,
+  'addToSessionHistory' : ActorMethod<[string], undefined>,
+  'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'clearSessionHistory' : ActorMethod<[], undefined>,
+  'deleteBookmark' : ActorMethod<[bigint], undefined>,
+  'deleteFile' : ActorMethod<[string], undefined>,
+  'deleteProject' : ActorMethod<[string], undefined>,
+  'deleteSnippet' : ActorMethod<[string], undefined>,
+  'getAllBookmarks' : ActorMethod<[], Array<Bookmark>>,
+  'getAllFiles' : ActorMethod<[], Array<CodeFile>>,
+  'getAllProjects' : ActorMethod<[], Array<ProjectMetadata>>,
+  'getAllSnippets' : ActorMethod<[], Array<CodeSnippet>>,
+  'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
+  'getCallerUserRole' : ActorMethod<[], UserRole>,
+  'getCodeSnippet' : ActorMethod<[string], [] | [CodeSnippet]>,
+  'getEditorSettings' : ActorMethod<[], [] | [string]>,
+  'getFile' : ActorMethod<[string], [] | [CodeFile]>,
+  'getProject' : ActorMethod<[string], [] | [ProjectMetadata]>,
+  'getScratchPad' : ActorMethod<[], [] | [string]>,
+  'getSessionHistory' : ActorMethod<[], Array<string>>,
+  'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'isCallerAdmin' : ActorMethod<[], boolean>,
+  'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'saveEditorSettings' : ActorMethod<[string], undefined>,
+  'saveFile' : ActorMethod<[CodeFile], undefined>,
+  'saveProject' : ActorMethod<[ProjectMetadata], undefined>,
+  'saveScratchPad' : ActorMethod<[string], undefined>,
+  'saveUserProfile' : ActorMethod<[UserProfile], undefined>,
+}
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];
 export declare const idlFactory: IDL.InterfaceFactory;

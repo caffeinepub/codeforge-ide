@@ -1,55 +1,65 @@
-# CodeForge IDE — Mobile-Friendly Rebuild
+# CodeVeda Phase 6 - Backend Persistence + Next Level Features
 
 ## Current State
-CodeForge IDE is a full VS Code-like web IDE built with React + Monaco Editor. It has:
-- Fixed full-viewport layout (100vw/100vh), desktop-only
-- Activity bar (48px wide, left side) with icons for Explorer, Search, Extensions, AI, Settings
-- Resizable sidebar (280px default) for file explorer and search
-- Menu bar (30px tall) with dropdown menus (File, Edit, View, etc.)
-- Multi-tab Monaco Editor (split pane support)
-- Bottom panel with Problems/Output/Terminal/Debug tabs (resizable)
-- Status bar (24px) at the bottom
-- Three themes: dark, light, high-contrast
-- All layout dimensions are hardcoded pixels, not responsive
-- No mobile navigation pattern (hamburger menu, bottom nav, drawer, etc.)
+CodeVeda is a VS Code-like browser IDE with:
+- Monaco Editor, multi-tab editing, split editor, 8 themes
+- AI Assistant panel (chat-based, local only)
+- File Explorer with local file system access (File System Access API)
+- Git panel, GitHub integration (PAT-based)
+- Extensions Marketplace, Snippets Library (local state only)
+- Terminal (xterm.js + WebContainers fallback)
+- User Profile Panel (persisted in localStorage only)
+- Admin Dashboard (role-based, local state)
+- Auth store (localStorage persist, no real backend auth)
+- Backend: only has authorization mixin + blob-storage mixin, no custom data
+- All data (files, snippets, settings, profile) stored in-memory or localStorage
 
 ## Requested Changes (Diff)
 
 ### Add
-- Mobile bottom navigation bar (replacing activity bar on small screens) with icon tabs for: Explorer, Search, AI, Settings
-- Mobile drawer/sheet for sidebar (file explorer and search) on small screens — slides up from bottom or from left
-- Mobile-aware MenuBar: collapse all menu items into a hamburger icon on small screens, show a full-screen dropdown sheet
-- Responsive layout breakpoints: < 768px is mobile mode, >= 768px is desktop mode
-- Touch-friendly tap targets (minimum 44px)
-- Mobile header bar: shows only app name + hamburger + action buttons (hide full menu bar on mobile)
-- Mobile-friendly bottom panel: collapsible with a drag handle, smaller font, tabs scroll horizontally
-- useIsMobile hook to drive layout switching
-- Viewport meta tag already present (verify)
-- Monaco Editor on mobile: disable split pane mode, set fontSize to 14, disable minimap, enable wordWrap
+- **Backend-persisted file storage**: Save/load user files (content + metadata) to/from the ICP backend canister using blob-storage
+- **Backend-persisted user profile**: displayName, bio, avatarColor, preferredLanguage stored in backend
+- **Backend-persisted snippets**: Code snippets saved to backend per user
+- **Backend-persisted settings**: Theme, font size, tab size, editor preferences persisted in backend
+- **Backend-persisted notes/scratch pad**: A quick scratch pad panel that saves notes to backend
+- **Bookmarks panel**: Bookmark files/lines with annotations, stored in backend
+- **Session history**: Track recently opened files per user, stored in backend
+- **Collaboration status**: Simple presence/activity broadcast (who's online, what file)
+- **New activity: Bookmarks icon** in activity bar
+- **New panel: Notes/Scratch Pad** in activity bar
+- **Code Formatter integration**: Format on save option using backend-stored preferences
+- **Project metadata persistence**: Project name, description, last opened stored in backend
 
 ### Modify
-- App.tsx: add responsive layout switching — desktop layout remains unchanged, mobile layout uses bottom nav + drawer sidebar
-- ActivityBar.tsx: hide on mobile (replaced by bottom nav)
-- Sidebar.tsx: on mobile, render inside a Sheet/Drawer that opens on demand
-- MenuBar.tsx: on mobile collapse to a compact header with hamburger + app name
-- StatusBar.tsx: on mobile show only essential info (language + branch), hide verbose items
-- EditorPane.tsx: pass mobile-aware options to Monaco (disable minimap, enable wordWrap, larger fontSize on mobile)
-- index.html: ensure viewport meta tag has `width=device-width, initial-scale=1`
-- BottomPanel.tsx: add horizontal scroll on tabs, ensure touch-friendly resize handle
-- WelcomeTab.tsx: stack grid to single column on mobile
+- Backend: Extend main.mo with custom data storage APIs (user profile, files, snippets, settings, notes, bookmarks, session history)
+- Frontend authStore: Wire to real backend `getCallerUserRole()` and `assignCallerUserRole()`
+- Frontend userProfileStore: Add backend sync (load on login, save on update)
+- Frontend snippetsStore: Add backend sync (load on open, save on add/edit/delete)
+- Frontend settingsStore: Add backend sync (save on change, load on login)
+- Activity bar: Add Bookmarks and Notes icons
+- Sidebar: Add Bookmarks panel and Notes/Scratch Pad panel
+- Status bar: Show "Cloud Saved" indicator when data is synced to backend
 
 ### Remove
-- Nothing removed — desktop layout is fully preserved
+- Nothing removed; all existing functionality preserved
 
 ## Implementation Plan
-1. Add `useIsMobile` hook (or use the existing `use-mobile.tsx` hook at src/frontend/src/hooks/use-mobile.tsx)
-2. Update `index.html` viewport meta tag
-3. Create `MobileBottomNav` component for mobile navigation
-4. Update `App.tsx` to render different layouts for mobile vs desktop
-5. Update `MenuBar.tsx` for mobile hamburger collapse
-6. Update `ActivityBar.tsx` to hide on mobile
-7. Update `Sidebar.tsx` to use Sheet/Drawer on mobile
-8. Update `StatusBar.tsx` for mobile-compact view
-9. Update `EditorPane.tsx` for mobile Monaco options
-10. Update `WelcomeTab.tsx` for single-column mobile grid
-11. Update `BottomPanel.tsx` for touch-friendly mobile layout
+1. Generate Motoko backend with:
+   - User profile CRUD (by principal)
+   - File metadata + content storage (create, read, update, delete, list)
+   - Snippet CRUD (by principal)
+   - Settings storage (by principal, JSON blob)
+   - Notes/scratch pad storage (by principal)
+   - Bookmark storage (by principal): file path + line + annotation
+   - Session history (by principal): list of recently opened paths
+2. Frontend: Create `backendSyncService.ts` that wraps all backend calls
+3. Wire userProfileStore to backend (save/load)
+4. Wire snippetsStore to backend (save/load)
+5. Wire settingsStore to backend (save/load)
+6. Add `NotesPanel` component (scratch pad with backend persistence)
+7. Add `BookmarksPanel` component with backend persistence
+8. Add Bookmarks + Notes icons to ActivityBar
+9. Add Sidebar routing for bookmarks and notes panels
+10. Add "Cloud Saved" badge to StatusBar
+11. Add file save-to-backend action in editor (saves current file content to canister)
+12. Add session history tracking (recent files synced to backend)

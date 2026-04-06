@@ -34,7 +34,7 @@ importers:
         version: 4.1.1(@dfinity/agent@3.3.1(@dfinity/candid@3.3.1(@dfinity/principal@3.3.1))(@dfinity/principal@3.3.1)(@noble/hashes@1.8.0))(@dfinity/candid@3.3.1(@dfinity/principal@3.3.1))(@dfinity/identity-secp256k1@3.3.1(@dfinity/candid@3.3.1(@dfinity/principal@3.3.1))(@dfinity/principal@3.3.1)(@noble/curves@1.9.7)(@noble/hashes@1.8.0))(@dfinity/identity@3.3.1(@dfinity/agent@3.3.1(@dfinity/candid@3.3.1(@dfinity/principal@3.3.1))(@dfinity/principal@3.3.1)(@noble/hashes@1.8.0))(@dfinity/candid@3.3.1(@dfinity/principal@3.3.1))(@dfinity/principal@3.3.1)(@noble/curves@1.9.7)(@noble/hashes@1.8.0))(@dfinity/principal@3.3.1)
       '@monaco-editor/react':
         specifier: ^4.7.0
-        version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        version: 4.7.0(monaco-editor@0.52.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       '@radix-ui/react-accordion':
         specifier: ^1.1.2
         version: 1.2.12(@types/react-dom@19.1.11(@types/react@19.1.17))(@types/react@19.1.17)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -128,6 +128,18 @@ importers:
       '@tanstack/react-router':
         specifier: ~1.131.8
         version: 1.131.50(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      '@webcontainer/api':
+        specifier: ^1.6.1
+        version: 1.6.1
+      '@xterm/addon-fit':
+        specifier: ^0.11.0
+        version: 0.11.0
+      '@xterm/addon-web-links':
+        specifier: ^0.12.0
+        version: 0.12.0
+      '@xterm/xterm':
+        specifier: ^6.0.0
+        version: 6.0.0
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.1
@@ -150,8 +162,8 @@ importers:
         specifier: 0.511.0
         version: 0.511.0(react@19.1.1)
       monaco-editor:
-        specifier: ^0.55.1
-        version: 0.55.1
+        specifier: ^0.52.2
+        version: 0.52.2
       motion:
         specifier: ^12.34.3
         version: 12.34.3(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -1728,9 +1740,6 @@ packages:
   '@types/three@0.176.0':
     resolution: {integrity: sha512-FwfPXxCqOtP7EdYMagCFePNKoG1AGBDUEVKtluv2BTVRpSt7b+X27xNsirPCTCqY1pGYsPUzaM3jgWP7dXSxlw==}
 
-  '@types/trusted-types@2.0.7':
-    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
-
   '@types/webxr@0.5.24':
     resolution: {integrity: sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==}
 
@@ -1748,11 +1757,23 @@ packages:
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
 
+  '@webcontainer/api@1.6.1':
+    resolution: {integrity: sha512-2RS2KiIw32BY1Icf6M1DvqSmcon9XICZCDgS29QJb2NmF12ZY2V5Ia+949hMKB3Wno+P/Y8W+sPP59PZeXSELg==}
+
   '@webgpu/types@0.1.66':
     resolution: {integrity: sha512-YA2hLrwLpDsRueNDXIMqN9NTzD6bCDkuXbOSe0heS+f8YE8usA6Gbv1prj81pzVHrbaAma7zObnIC+I6/sXJgA==}
 
   '@xobotyi/scrollbar-width@1.9.5':
     resolution: {integrity: sha512-N8tkAACJx2ww8vFMneJmaAgmjAG1tnVBZJRLRcx061tmsLRZHSEZSLuGWnwPtunsSLvSqXQ2wfp7Mgqg1I+2dQ==}
+
+  '@xterm/addon-fit@0.11.0':
+    resolution: {integrity: sha512-jYcgT6xtVYhnhgxh3QgYDnnNMYTcf8ElbxxFzX0IZo+vabQqSPAjC3c1wJrKB5E19VwQei89QCiZZP86DCPF7g==}
+
+  '@xterm/addon-web-links@0.12.0':
+    resolution: {integrity: sha512-4Smom3RPyVp7ZMYOYDoC/9eGJJJqYhnPLGGqJ6wOBfB8VxPViJNSKdgRYb8NpaM6YSelEKbA2SStD7lGyqaobw==}
+
+  '@xterm/xterm@6.0.0':
+    resolution: {integrity: sha512-TQwDdQGtwwDt+2cgKDLn0IRaSxYu1tSUjgKarSDkUM0ZNiSRXFpjxEsvc/Zgc5kq5omJ+V0a8/kIM2WD3sMOYg==}
 
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
@@ -1996,9 +2017,6 @@ packages:
 
   dom-helpers@5.2.1:
     resolution: {integrity: sha512-nRCa7CK3VTrM2NmGkIy4cbK7IZlgBE/PYMn55rrXefr5xXDP0LdtfPnblFDoVdcAfslJ7or6iqAUnx0CCGIWQA==}
-
-  dompurify@3.2.7:
-    resolution: {integrity: sha512-WhL/YuveyGXJaerVlMYGWhvQswa7myDG17P7Vu65EWC05o8vfeNbvNf4d/BOvH99+ZW+LlQsc1GDKMa1vNK6dw==}
 
   dotenv-cli@8.0.0:
     resolution: {integrity: sha512-aLqYbK7xKOiTMIRf1lDPbI+Y+Ip/wo5k3eyp6ePysVaSqbyxjyK3dK35BTxG+rmd7djf5q2UPs4noPNH+cj0Qw==}
@@ -2290,11 +2308,6 @@ packages:
       '@types/three': '>=0.134.0'
       three: '>=0.134.0'
 
-  marked@14.0.0:
-    resolution: {integrity: sha512-uIj4+faQ+MgHgwUW1l2PsPglZLOLOT1uErt06dAPtx2kjteLAkbsd/0FiYg/MGS+i7ZKLb7w2WClxHkzOOuryQ==}
-    engines: {node: '>= 18'}
-    hasBin: true
-
   mdn-data@2.0.14:
     resolution: {integrity: sha512-dn6wd0uw5GsdswPFfsgMp5NSB0/aDe6fK94YJV/AJDYXL6HVLWBsxeq7js7Ad+mU2K9LAlwpk6kN2D5mwCPVow==}
 
@@ -2325,8 +2338,8 @@ packages:
     resolution: {integrity: sha512-qOOzS1cBTWYF4BH8fVePDBOO9iptMnGUEZwNc/cMWnTV2nVLZ7VoNWEPHkYczZA0pdoA7dl6e7FL659nX9S2aw==}
     engines: {node: '>=16 || 14 >=14.17'}
 
-  monaco-editor@0.55.1:
-    resolution: {integrity: sha512-jz4x+TJNFHwHtwuV9vA9rMujcZRb0CEilTEwG2rRSpe/A7Jdkuj8xPKttCgOh+v/lkHy7HsZ64oj+q3xoAFl9A==}
+  monaco-editor@0.52.2:
+    resolution: {integrity: sha512-GEQWEZmfkOGLdd3XK8ryrfWz3AIP8YymVXiPHEdewrUq7mh0qrKrfHLNCXcbB6sTnMLnOZ3ztSiKcciFUkIJwQ==}
 
   motion-dom@12.34.3:
     resolution: {integrity: sha512-sYgFe+pR9aIM7o4fhs2aXtOI+oqlUd33N9Yoxcgo1Fv7M20sRkHtCmzE/VRNIcq7uNJ+qio+Xubt1FXH3pQ+eQ==}
@@ -3430,10 +3443,10 @@ snapshots:
     dependencies:
       state-local: 1.0.7
 
-  '@monaco-editor/react@4.7.0(monaco-editor@0.55.1)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
+  '@monaco-editor/react@4.7.0(monaco-editor@0.52.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
     dependencies:
       '@monaco-editor/loader': 1.7.0
-      monaco-editor: 0.55.1
+      monaco-editor: 0.52.2
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
 
@@ -4401,9 +4414,6 @@ snapshots:
       fflate: 0.8.2
       meshoptimizer: 0.18.1
 
-  '@types/trusted-types@2.0.7':
-    optional: true
-
   '@types/webxr@0.5.24': {}
 
   '@use-gesture/core@10.3.1': {}
@@ -4425,9 +4435,17 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@webcontainer/api@1.6.1': {}
+
   '@webgpu/types@0.1.66': {}
 
   '@xobotyi/scrollbar-width@1.9.5': {}
+
+  '@xterm/addon-fit@0.11.0': {}
+
+  '@xterm/addon-web-links@0.12.0': {}
+
+  '@xterm/xterm@6.0.0': {}
 
   ansi-regex@5.0.1: {}
 
@@ -4653,10 +4671,6 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.28.4
       csstype: 3.1.3
-
-  dompurify@3.2.7:
-    optionalDependencies:
-      '@types/trusted-types': 2.0.7
 
   dotenv-cli@8.0.0:
     dependencies:
@@ -4914,8 +4928,6 @@ snapshots:
       '@types/three': 0.176.0
       three: 0.176.0
 
-  marked@14.0.0: {}
-
   mdn-data@2.0.14: {}
 
   merge2@1.4.1: {}
@@ -4939,10 +4951,7 @@ snapshots:
 
   minipass@7.1.2: {}
 
-  monaco-editor@0.55.1:
-    dependencies:
-      dompurify: 3.2.7
-      marked: 14.0.0
+  monaco-editor@0.52.2: {}
 
   motion-dom@12.34.3:
     dependencies:

@@ -8,6 +8,7 @@ export interface IDESettings {
   wordWrap: boolean;
   minimap: boolean;
   lineNumbers: boolean;
+  fontLigatures: boolean;
 }
 
 interface SettingsStore {
@@ -18,11 +19,13 @@ interface SettingsStore {
 
 const DEFAULT_SETTINGS: IDESettings = {
   fontSize: 14,
-  fontFamily: "'Fira Code', Consolas, 'Courier New', monospace",
+  fontFamily:
+    "'JetBrains Mono', 'Fira Code', Consolas, 'Courier New', monospace",
   tabSize: 2,
   wordWrap: false,
   minimap: true,
   lineNumbers: true,
+  fontLigatures: true,
 };
 
 export const useSettingsStore = create<SettingsStore>()(

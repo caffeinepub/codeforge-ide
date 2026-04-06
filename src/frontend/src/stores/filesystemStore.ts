@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import type { FSNode } from "../features/filesystem/mockFileSystem";
 import { MOCK_FILE_TREE } from "../features/filesystem/mockFileSystem";
+import type { OpenedDirectory, OpenedFile } from "../utils/fileSystemService";
+import { saveFileToSystem } from "../utils/fileSystemService";
 
 interface FilesystemStore {
   fileTree: FSNode[];
@@ -8,6 +10,10 @@ interface FilesystemStore {
   expandedFolders: Set<string>;
   contextMenuNodeId: string | null;
   renamingNodeId: string | null;
+  // New state
+  directoryHandle: FileSystemDirectoryHandle | null;
+  projectName: string;
+  fileHandles: Map<string, FileSystemFileHandle>;
   // Actions
   setSelectedFile: (id: string | null) => void;
   toggleFolder: (id: string) => void;
@@ -18,6 +24,14 @@ interface FilesystemStore {
   addFolder: (parentId: string | null, name: string) => FSNode;
   setContextMenuNode: (id: string | null) => void;
   setRenamingNode: (id: string | null) => void;
+  // New actions
+  loadFromDirectory: (dir: OpenedDirectory) => void;
+  loadFile: (file: OpenedFile) => void;
+  saveFileByPath: (path: string, content: string) => Promise<void>;
+  saveAllFiles: (
+    files: Array<{ name: string; path: string; content: string }>,
+  ) => Promise<void>;
+  setProjectName: (name: string) => void;
 }
 
 function collectExpanded(
@@ -108,6 +122,9 @@ export const useFilesystemStore = create<FilesystemStore>((set, get) => ({
   expandedFolders: collectExpanded(MOCK_FILE_TREE),
   contextMenuNodeId: null,
   renamingNodeId: null,
+  directoryHandle: null,
+  projectName: "CodeVeda",
+  fileHandles: new Map(),
 
   setSelectedFile: (id) => set({ selectedFileId: id }),
 
@@ -194,6 +211,49 @@ export const useFilesystemStore = create<FilesystemStore>((set, get) => ({
 
   setContextMenuNode: (id) => set({ contextMenuNodeId: id }),
   setRenamingNode: (id) => set({ renamingNodeId: id }),
+
+  loadFromDirectory: (dir: OpenedDirectory) => {
+    set({
+      fileTree: dir.tree,
+      directoryHandle: null, // DirectoryHandle not stored in state directly to avoid serialization issues
+      projectName: dir.name,
+      fileHandles: dir.handles,
+      expandedFolders: new Set<string>(),
+      selectedFileId: null,
+    });
+  },
+
+  loadFile: (file: OpenedFile) => {
+    const newHandles = new Map(get().fileHandles);
+    if (file.handle) {
+      newHandles.set(file.node.path, file.handle);
+    }
+    set((state) => ({
+      fileTree: [...state.fileTree, file.node],
+      fileHandles: newHandles,
+    }));
+  },
+
+  saveFileByPath: async (path: string, content: string) => {
+    const { fileHandles } = get();
+    const handle = fileHandles.get(path);
+    const fileName = path.split("/").pop() ?? path;
+    const newHandle = await saveFileToSystem(fileName, content, handle);
+    if (newHandle) {
+      const updatedHandles = new Map(get().fileHandles);
+      updatedHandles.set(path, newHandle);
+      set({ fileHandles: updatedHandles });
+    }
+  },
+
+  saveAllFiles: async (
+    files: Array<{ name: string; path: string; content: string }>,
+  ) => {
+    const { saveFileByPath } = get();
+    await Promise.all(files.map((f) => saveFileByPath(f.path, f.content)));
+  },
+
+  setProjectName: (name: string) => set({ projectName: name }),
 }));
 
 function updateExpanded(node: FSNode, id: string, expanded: boolean): FSNode {

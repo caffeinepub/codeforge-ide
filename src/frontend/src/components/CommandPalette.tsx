@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { useEditorStore } from "../stores/editorStore";
+import { useGitStore } from "../stores/gitStore";
 import { useNotificationStore } from "../stores/notificationStore";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useThemeStore } from "../stores/themeStore";
@@ -14,7 +15,23 @@ interface Command {
   action: () => void;
 }
 
-export const CommandPalette: React.FC = () => {
+interface CommandPaletteProps {
+  onOpenAI?: () => void;
+  onOpenAdmin?: () => void;
+  onOpenGit?: () => void;
+  onOpenExtensions?: () => void;
+  onOpenSnippets?: () => void;
+  onOpenPreview?: () => void;
+}
+
+export const CommandPalette: React.FC<CommandPaletteProps> = ({
+  onOpenAI,
+  onOpenAdmin,
+  onOpenGit,
+  onOpenExtensions,
+  onOpenSnippets,
+  onOpenPreview,
+}) => {
   const {
     showCommandPalette,
     setShowCommandPalette,
@@ -25,6 +42,7 @@ export const CommandPalette: React.FC = () => {
   const { setTheme } = useThemeStore();
   const { updateSettings, settings } = useSettingsStore();
   const { addNotification } = useNotificationStore();
+  const { commit, commitMessage } = useGitStore();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,10 +77,49 @@ export const CommandPalette: React.FC = () => {
     {
       id: "theme-hc",
       label: "Color Theme: High Contrast Dark",
-      description: "Switch to High Contrast Dark theme",
       action: () => {
         setTheme("high-contrast" as IDETheme);
         addNotification({ message: "Theme: High Contrast Dark", type: "info" });
+      },
+    },
+    {
+      id: "theme-monokai",
+      label: "Color Theme: Monokai",
+      action: () => {
+        setTheme("monokai" as IDETheme);
+        addNotification({ message: "Theme: Monokai", type: "info" });
+      },
+    },
+    {
+      id: "theme-solarized",
+      label: "Color Theme: Solarized Dark",
+      action: () => {
+        setTheme("solarized-dark" as IDETheme);
+        addNotification({ message: "Theme: Solarized Dark", type: "info" });
+      },
+    },
+    {
+      id: "theme-dracula",
+      label: "Color Theme: Dracula",
+      action: () => {
+        setTheme("dracula" as IDETheme);
+        addNotification({ message: "Theme: Dracula", type: "info" });
+      },
+    },
+    {
+      id: "theme-nord",
+      label: "Color Theme: Nord",
+      action: () => {
+        setTheme("nord" as IDETheme);
+        addNotification({ message: "Theme: Nord", type: "info" });
+      },
+    },
+    {
+      id: "theme-one-dark",
+      label: "Color Theme: One Dark Pro",
+      action: () => {
+        setTheme("one-dark" as IDETheme);
+        addNotification({ message: "Theme: One Dark Pro", type: "info" });
       },
     },
     {
@@ -139,6 +196,61 @@ export const CommandPalette: React.FC = () => {
       },
     },
     {
+      id: "toggle-ai",
+      label: "Toggle AI Assistant",
+      description: "Open or close the AI chat panel",
+      action: () => {
+        onOpenAI?.();
+      },
+    },
+    {
+      id: "open-admin",
+      label: "Open Admin Dashboard",
+      action: () => {
+        onOpenAdmin?.();
+      },
+    },
+    {
+      id: "open-git",
+      label: "Git: Source Control",
+      action: () => {
+        onOpenGit?.();
+      },
+    },
+    {
+      id: "git-commit",
+      label: "Git: Commit",
+      description: "Commit staged changes",
+      action: () => {
+        if (commitMessage) commit();
+        addNotification({
+          message: "Git: switch to Source Control panel to commit",
+          type: "info",
+        });
+      },
+    },
+    {
+      id: "open-extensions",
+      label: "Open Extensions",
+      action: () => {
+        onOpenExtensions?.();
+      },
+    },
+    {
+      id: "open-snippets",
+      label: "Open Snippets",
+      action: () => {
+        onOpenSnippets?.();
+      },
+    },
+    {
+      id: "open-preview",
+      label: "Open Live Preview",
+      action: () => {
+        onOpenPreview?.();
+      },
+    },
+    {
       id: "toggle-linenumbers",
       label: "Toggle Line Numbers",
       action: () => {
@@ -193,13 +305,20 @@ export const CommandPalette: React.FC = () => {
           <div
             className="absolute inset-0"
             style={{
-              background: "rgba(0,0,0,0.5)",
-              backdropFilter: "blur(2px)",
+              background: "rgba(0,0,0,0.7)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
             }}
           />
           <motion.div
-            className="relative w-full max-w-2xl rounded-lg shadow-2xl overflow-hidden border border-[var(--border)]"
-            style={{ background: "var(--bg-sidebar)" }}
+            className="relative w-full max-w-2xl rounded-lg overflow-hidden"
+            style={{
+              background: "rgba(30,30,35,0.95)",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.6)",
+            }}
             initial={{ scale: 0.97, y: -12, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.97, y: -12, opacity: 0 }}
@@ -209,7 +328,7 @@ export const CommandPalette: React.FC = () => {
           >
             <input
               ref={inputRef}
-              className="w-full px-4 py-3 text-sm outline-none bg-transparent text-[var(--text-primary)] placeholder-[var(--text-muted)] border-b border-[var(--border)]"
+              className="w-full px-4 py-3 text-sm outline-none bg-transparent text-[var(--text-primary)] placeholder-[var(--text-muted)] border-b border-[rgba(255,255,255,0.08)]"
               placeholder="Type a command..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -229,7 +348,7 @@ export const CommandPalette: React.FC = () => {
                     className={`flex items-center justify-between w-full px-4 py-2.5 cursor-pointer transition-colors text-left ${
                       i === selectedIndex
                         ? "bg-[var(--accent)] text-white"
-                        : "text-[var(--text-primary)] hover:bg-[var(--hover-item)]"
+                        : "text-[var(--text-primary)] hover:bg-[rgba(255,255,255,0.06)]"
                     }`}
                     onClick={() => {
                       cmd.action();

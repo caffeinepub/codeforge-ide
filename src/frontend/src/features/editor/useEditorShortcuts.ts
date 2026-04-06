@@ -1,10 +1,15 @@
 import { useEffect } from "react";
+import { toast } from "sonner";
+import { useActor } from "../../hooks/useActor";
+import { saveCloudFile } from "../../services/backendService";
+import { useAuthStore } from "../../stores/authStore";
 import { useEditorStore } from "../../stores/editorStore";
 import { useNotificationStore } from "../../stores/notificationStore";
 
 export function useEditorShortcuts() {
   const {
     activeFileId,
+    openFiles,
     closeFile,
     markFileDirty,
     setShowCommandPalette,
@@ -14,9 +19,11 @@ export function useEditorShortcuts() {
     setSplitMode,
   } = useEditorStore();
   const { addNotification } = useNotificationStore();
+  const { actor } = useActor();
+  const { isLoggedIn } = useAuthStore();
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
       const shift = e.shiftKey;
 
@@ -24,6 +31,33 @@ export function useEditorShortcuts() {
       if (ctrl && shift && e.key === "P") {
         e.preventDefault();
         setShowCommandPalette(true);
+        return;
+      }
+
+      // Ctrl+Shift+S -> Save to Cloud
+      if (ctrl && shift && e.key === "S") {
+        e.preventDefault();
+        if (!actor || !isLoggedIn) {
+          toast.error("Login to save files to cloud");
+          return;
+        }
+        const activeFile = openFiles.find((f) => f.id === activeFileId);
+        if (!activeFile) {
+          toast.error("No active file to save");
+          return;
+        }
+        const ok = await saveCloudFile(actor, {
+          name: activeFile.name,
+          path: activeFile.path,
+          content: activeFile.content,
+          language: activeFile.language,
+          lastModified: BigInt(Date.now()),
+        });
+        if (ok) {
+          toast.success(`"${activeFile.name}" saved to cloud ☁`);
+        } else {
+          toast.error("Failed to save to cloud");
+        }
         return;
       }
 
@@ -42,7 +76,7 @@ export function useEditorShortcuts() {
       }
 
       // Ctrl+S -> Save
-      if (ctrl && e.key === "s") {
+      if (ctrl && !shift && e.key === "s") {
         e.preventDefault();
         if (activeFileId) {
           markFileDirty(activeFileId, false);
@@ -70,6 +104,7 @@ export function useEditorShortcuts() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     activeFileId,
+    openFiles,
     closeFile,
     markFileDirty,
     setShowCommandPalette,
@@ -78,5 +113,7 @@ export function useEditorShortcuts() {
     splitMode,
     setSplitMode,
     addNotification,
+    actor,
+    isLoggedIn,
   ]);
 }
