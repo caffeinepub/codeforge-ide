@@ -1,7 +1,6 @@
-import MonacoEditor from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import type React from "react";
-import { useCallback, useRef } from "react";
+import { Suspense, lazy, useCallback, useRef } from "react";
 import { useIsMobile } from "../../hooks/use-mobile";
 import { useEditorStore } from "../../stores/editorStore";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -11,8 +10,31 @@ import { Breadcrumbs } from "./Breadcrumbs";
 import { EditorTabs } from "./EditorTabs";
 import { WelcomeTab } from "./WelcomeTab";
 
+// Use dynamic import bypass so Rollup doesn't statically analyze the package
+const _dynamicImport = (pkg: string): Promise<any> => {
+  // biome-ignore lint: dynamic import bypass for uninstalled packages
+  return new Function("m", "return import(m)")(pkg) as Promise<any>;
+};
+
+// Lazy Monaco editor component
+const MonacoEditorLazy = lazy(async () => {
+  const mod = await _dynamicImport("@monaco-editor/react");
+  return { default: mod.default ?? mod.Editor ?? (() => null) };
+});
+
 interface EditorPaneProps {
   isPrimary?: boolean;
+}
+
+interface MonacoEditorProps {
+  key?: string;
+  height?: string;
+  theme?: string;
+  language?: string;
+  value?: string;
+  onChange?: (val: string | undefined) => void;
+  onMount?: (editor: Monaco.editor.IStandaloneCodeEditor) => void;
+  options?: Record<string, unknown>;
 }
 
 export const EditorPane: React.FC<EditorPaneProps> = ({ isPrimary = true }) => {
@@ -26,7 +48,7 @@ export const EditorPane: React.FC<EditorPaneProps> = ({ isPrimary = true }) => {
     setSecondPaneActiveFile,
   } = useEditorStore();
 
-  const { settings } = useSettingsStore();
+  const { settings, updateSettings } = useSettingsStore();
   const { theme } = useThemeStore();
   const isMobile = useIsMobile();
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -54,61 +76,174 @@ export const EditorPane: React.FC<EditorPaneProps> = ({ isPrimary = true }) => {
     else setSecondPaneActiveFile(id);
   };
 
+  const monacoTheme = getMonacoTheme(theme);
+
+  const toolbarBtn = (active: boolean): React.CSSProperties => ({
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    cursor: "pointer",
+    border: "none",
+    background: active ? "rgba(0,122,204,0.25)" : "transparent",
+    color: active ? "var(--accent)" : "var(--text-muted)",
+    boxShadow: active ? "0 0 6px rgba(0,122,204,0.4)" : "none",
+    transition: "all 0.15s",
+    fontSize: 10,
+    fontWeight: 700,
+    fontFamily: "'JetBrains Mono', monospace",
+  });
+
+  const editorOptions: Record<string, unknown> = {
+    fontSize: isMobile ? Math.max(14, settings.fontSize) : settings.fontSize,
+    fontFamily: settings.fontFamily,
+    fontLigatures: true,
+    minimap: { enabled: isMobile ? false : settings.minimap },
+    wordWrap: isMobile || settings.wordWrap ? "on" : "off",
+    lineNumbers: settings.lineNumbers ? "on" : "off",
+    tabSize: settings.tabSize,
+    automaticLayout: true,
+    bracketPairColorization: { enabled: settings.bracketPairColorization },
+    stickyScroll: { enabled: settings.stickyScroll },
+    folding: true,
+    scrollBeyondLastLine: false,
+    renderLineHighlight: "all",
+    cursorBlinking: "blink",
+    smoothScrolling: true,
+    mouseWheelZoom: !isMobile,
+    contextmenu: true,
+    padding: { top: 8, bottom: 8 },
+    suggest: { showKeywords: true },
+    quickSuggestions: !isMobile,
+    autoIndent: "full",
+    formatOnPaste: true,
+    formatOnType: true,
+  };
+
   return (
     <div
       className="flex flex-col h-full overflow-hidden"
       style={{ background: "var(--bg-editor)" }}
     >
-      {/* Tab Bar */}
       <EditorTabs
         isPrimary={isPrimary}
         activeFileId={effectiveActiveId}
         onTabSelect={handleTabSelect}
       />
 
-      {/* Breadcrumbs */}
       {activeFile && <Breadcrumbs />}
 
-      {/* Editor area */}
+      {activeFile && !isMobile && (
+        <div
+          className="flex items-center gap-1 px-2 border-b border-[var(--border)] flex-shrink-0"
+          style={{ height: 28, background: "var(--bg-editor)" }}
+        >
+          <button
+            type="button"
+            style={toolbarBtn(settings.wordWrap)}
+            onClick={() => updateSettings({ wordWrap: !settings.wordWrap })}
+            title={`Word Wrap (${settings.wordWrap ? "On" : "Off"})`}
+          >
+            W
+          </button>
+          <button
+            type="button"
+            style={toolbarBtn(settings.minimap)}
+            onClick={() => updateSettings({ minimap: !settings.minimap })}
+            title={`Minimap (${settings.minimap ? "On" : "Off"})`}
+          >
+            M
+          </button>
+          <button
+            type="button"
+            style={toolbarBtn(settings.stickyScroll)}
+            onClick={() =>
+              updateSettings({ stickyScroll: !settings.stickyScroll })
+            }
+            title={`Sticky Scroll (${settings.stickyScroll ? "On" : "Off"})`}
+          >
+            S
+          </button>
+          <button
+            type="button"
+            style={toolbarBtn(settings.bracketPairColorization)}
+            onClick={() =>
+              updateSettings({
+                bracketPairColorization: !settings.bracketPairColorization,
+              })
+            }
+            title="Bracket Colorization"
+          >
+            {"{}"}
+          </button>
+          <div
+            className="w-px h-4 mx-1"
+            style={{ background: "var(--border)" }}
+          />
+          <button
+            type="button"
+            style={{ ...toolbarBtn(false), width: 18, height: 18, fontSize: 9 }}
+            onClick={() =>
+              updateSettings({ fontSize: Math.max(10, settings.fontSize - 1) })
+            }
+            title="Decrease font size"
+          >
+            -
+          </button>
+          <span
+            style={{
+              fontSize: 10,
+              color: "var(--text-muted)",
+              minWidth: 22,
+              textAlign: "center",
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+          >
+            {settings.fontSize}
+          </span>
+          <button
+            type="button"
+            style={{ ...toolbarBtn(false), width: 18, height: 18, fontSize: 9 }}
+            onClick={() =>
+              updateSettings({ fontSize: Math.min(24, settings.fontSize + 1) })
+            }
+            title="Increase font size"
+          >
+            +
+          </button>
+        </div>
+      )}
+
       {!activeFile ? (
         <WelcomeTab />
       ) : (
         <div className="flex-1 overflow-hidden">
-          <MonacoEditor
-            key={activeFile.id}
-            height="100%"
-            theme={getMonacoTheme(theme)}
-            language={activeFile.language}
-            value={activeFile.content}
-            onChange={(val) => updateFileContent(activeFile.id, val ?? "")}
-            onMount={handleEditorMount}
-            options={{
-              fontSize: isMobile
-                ? Math.max(14, settings.fontSize)
-                : settings.fontSize,
-              fontFamily: settings.fontFamily,
-              fontLigatures: true,
-              minimap: { enabled: isMobile ? false : settings.minimap },
-              wordWrap: isMobile || settings.wordWrap ? "on" : "off",
-              lineNumbers: settings.lineNumbers ? "on" : "off",
-              tabSize: settings.tabSize,
-              automaticLayout: true,
-              bracketPairColorization: { enabled: true },
-              folding: true,
-              scrollBeyondLastLine: false,
-              renderLineHighlight: "all",
-              cursorBlinking: "blink",
-              smoothScrolling: true,
-              mouseWheelZoom: !isMobile,
-              contextmenu: true,
-              padding: { top: 8, bottom: 8 },
-              suggest: { showKeywords: true },
-              quickSuggestions: !isMobile,
-              autoIndent: "full",
-              formatOnPaste: true,
-              formatOnType: true,
-            }}
-          />
+          <Suspense
+            fallback={
+              <div
+                className="flex items-center justify-center h-full"
+                style={{ color: "var(--text-muted)", fontSize: 12 }}
+              >
+                Loading editor...
+              </div>
+            }
+          >
+            <MonacoEditorLazy
+              {...({
+                key: activeFile.id,
+                height: "100%",
+                theme: monacoTheme,
+                language: activeFile.language,
+                value: activeFile.content,
+                onChange: (val: string | undefined) =>
+                  updateFileContent(activeFile.id, val ?? ""),
+                onMount: handleEditorMount,
+                options: editorOptions,
+              } as MonacoEditorProps)}
+            />
+          </Suspense>
         </div>
       )}
     </div>

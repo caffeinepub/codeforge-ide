@@ -6,10 +6,12 @@ import {
   GitBranch,
   Loader2,
   LogIn,
+  Mouse,
+  Timer,
   User,
 } from "lucide-react";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useIsMobile } from "../hooks/use-mobile";
 import { useAuthStore } from "../stores/authStore";
 import { useEditorStore } from "../stores/editorStore";
@@ -28,6 +30,12 @@ interface StatusBarProps {
   cloudSyncStatus?: "idle" | "syncing" | "synced" | "error";
 }
 
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
 export const StatusBar: React.FC<StatusBarProps> = ({
   isMobile: isMobileProp,
   onOpenGit,
@@ -38,7 +46,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 }) => {
   const { openFiles, activeFileId } = useEditorStore();
   const { theme } = useThemeStore();
-  const { settings } = useSettingsStore();
+  const { settings, updateSettings } = useSettingsStore();
   const { isLoggedIn, principal } = useAuthStore();
   const { branch } = useGitStore();
   const { connectedRepo } = useGithubStore();
@@ -46,13 +54,72 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   const isMobile = isMobileProp ?? isMobileHook;
   const [vimMode, setVimMode] = useState(false);
 
+  // Pomodoro state
+  const [pomodoroOpen, setPomodoroOpen] = useState(false);
+  const [pomodoroSeconds, setPomodoroSeconds] = useState(25 * 60);
+  const [pomodoroRunning, setPomodoroRunning] = useState(false);
+  const [pomodoroFlash, setPomodoroFlash] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pomodoroRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (pomodoroRunning) {
+      intervalRef.current = setInterval(() => {
+        setPomodoroSeconds((prev) => {
+          if (prev <= 1) {
+            clearInterval(intervalRef.current!);
+            setPomodoroRunning(false);
+            setPomodoroFlash(true);
+            setTimeout(() => setPomodoroFlash(false), 3000);
+            if (
+              typeof Notification !== "undefined" &&
+              Notification.permission === "granted"
+            ) {
+              new Notification("CodeVeda", {
+                body: "Pomodoro session complete! Time for a break.",
+                icon: "/favicon.ico",
+              });
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [pomodoroRunning]);
+
+  // Close pomodoro popover on outside click
+  useEffect(() => {
+    if (!pomodoroOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        pomodoroRef.current &&
+        !pomodoroRef.current.contains(e.target as Node)
+      ) {
+        setPomodoroOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handler);
+    return () => window.removeEventListener("mousedown", handler);
+  }, [pomodoroOpen]);
+
   const activeFile = openFiles.find((f) => f.id === activeFileId);
   const cursorPos = activeFile?.cursorPosition ?? { lineNumber: 1, column: 1 };
   const langLabel = activeFile?.language ?? "plaintext";
 
+  // File stats
+  const lineCount = activeFile ? activeFile.content.split("\n").length : 0;
   const wordCount = activeFile
     ? activeFile.content.split(/\s+/).filter(Boolean).length
     : 0;
+  const charCount = activeFile ? activeFile.content.length : 0;
+  const charDisplay =
+    charCount >= 1000 ? `${(charCount / 1000).toFixed(1)}K` : String(charCount);
 
   const principalShort = principal
     ? `${principal.slice(0, 5)}...${principal.slice(-4)}`
@@ -71,12 +138,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     }[theme] ?? theme;
 
   const cloudIcon = () => {
-    if (cloudSyncStatus === "syncing") {
+    if (cloudSyncStatus === "syncing")
       return <Loader2 size={11} className="animate-spin" />;
-    }
-    if (cloudSyncStatus === "synced") {
+    if (cloudSyncStatus === "synced")
       return <CheckCircle2 size={11} style={{ color: "#22c55e" }} />;
-    }
     return <Cloud size={11} />;
   };
 
@@ -86,6 +151,12 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     if (cloudSyncStatus === "error") return "Sync error";
     return "Cloud";
   };
+
+  const pomodoroPresets = [
+    { label: "25 min", value: 25 * 60 },
+    { label: "5 min", value: 5 * 60 },
+    { label: "15 min", value: 15 * 60 },
+  ];
 
   return (
     <div
@@ -112,21 +183,15 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           <span>{branch}</span>
         </button>
 
-        {/* LIVE badge */}
         {!isMobile && (
           <span
             className="live-badge flex items-center px-1.5 py-0.5 rounded-full font-semibold"
-            style={{
-              background: "#22c55e",
-              color: "#fff",
-              fontSize: 10,
-            }}
+            style={{ background: "#22c55e", color: "#fff", fontSize: 10 }}
           >
             ● LIVE
           </span>
         )}
 
-        {/* GitHub badge */}
         {connectedRepo && !isMobile && (
           <span className="flex items-center gap-1 hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
             <Cloud size={11} />
@@ -144,6 +209,33 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             <span>2</span>
           </span>
         )}
+
+        {/* Multi-cursor hint */}
+        {!isMobile && (
+          <span
+            className="relative group"
+            title="Alt+Click to add multi-cursor"
+          >
+            <button
+              type="button"
+              className="flex items-center gap-1 hover:bg-white/10 px-1.5 py-0.5 rounded transition-colors"
+              style={{ color: "rgba(255,255,255,0.45)", fontSize: 10 }}
+              data-ocid="statusbar.multicursor.button"
+            >
+              <Mouse size={10} />
+            </button>
+            <span
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] px-2 py-1 rounded pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50"
+              style={{
+                background: "var(--bg-sidebar)",
+                border: "1px solid var(--border)",
+                color: "var(--text-primary)",
+              }}
+            >
+              Alt+Click for multi-cursor
+            </span>
+          </span>
+        )}
       </div>
 
       {/* Right */}
@@ -153,8 +245,12 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             <span className="hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
               Ln {cursorPos.lineNumber}, Col {cursorPos.column}
             </span>
-            <span className="hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
-              {wordCount}W
+            {/* Live file stats */}
+            <span
+              className="hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+              title={`${lineCount} lines, ${wordCount} words, ${charCount} chars`}
+            >
+              {lineCount}L {wordCount}W {charDisplay}C
             </span>
             <span className="hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
               Spaces: {settings.tabSize}
@@ -167,6 +263,51 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             </span>
           </>
         )}
+
+        {/* Font size controls */}
+        {!isMobile && (
+          <span className="flex items-center gap-0.5 hover:bg-white/10 px-1 py-0.5 rounded transition-colors">
+            <button
+              type="button"
+              className="w-4 h-4 flex items-center justify-center rounded hover:bg-white/15 transition-colors text-[9px] font-bold leading-none"
+              style={{ color: "rgba(255,255,255,0.7)" }}
+              onClick={() =>
+                updateSettings({
+                  fontSize: Math.max(10, settings.fontSize - 1),
+                })
+              }
+              title="Decrease font size"
+              data-ocid="statusbar.font_decrease.button"
+            >
+              A-
+            </button>
+            <span
+              style={{
+                fontSize: 10,
+                color: "rgba(255,255,255,0.6)",
+                minWidth: 18,
+                textAlign: "center",
+              }}
+            >
+              {settings.fontSize}
+            </span>
+            <button
+              type="button"
+              className="w-4 h-4 flex items-center justify-center rounded hover:bg-white/15 transition-colors text-[9px] font-bold leading-none"
+              style={{ color: "rgba(255,255,255,0.7)" }}
+              onClick={() =>
+                updateSettings({
+                  fontSize: Math.min(24, settings.fontSize + 1),
+                })
+              }
+              title="Increase font size"
+              data-ocid="statusbar.font_increase.button"
+            >
+              A+
+            </button>
+          </span>
+        )}
+
         {activeFile && (
           <span className="capitalize hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors">
             {langLabel}
@@ -192,6 +333,120 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           >
             {vimMode ? "VIM" : "INS"}
           </button>
+        )}
+
+        {/* Pomodoro Timer */}
+        {!isMobile && (
+          <div className="relative" ref={pomodoroRef}>
+            <button
+              type="button"
+              onClick={() => setPomodoroOpen((v) => !v)}
+              className="flex items-center gap-1 hover:bg-white/10 px-1.5 py-0.5 rounded transition-colors"
+              style={{
+                fontSize: 10,
+                color: pomodoroFlash
+                  ? "#f7c948"
+                  : pomodoroRunning
+                    ? "#22c55e"
+                    : "rgba(255,255,255,0.6)",
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+              title="Pomodoro Timer"
+              data-ocid="statusbar.pomodoro.button"
+            >
+              <Timer size={10} />
+              <span>{formatTime(pomodoroSeconds)}</span>
+            </button>
+
+            {pomodoroOpen && (
+              <div
+                className="absolute bottom-7 right-0 rounded-lg shadow-2xl p-3 z-50"
+                style={{
+                  background: "var(--bg-sidebar)",
+                  border: "1px solid var(--border)",
+                  width: 180,
+                }}
+              >
+                <p
+                  className="text-[10px] font-semibold mb-2"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  POMODORO TIMER
+                </p>
+                <div className="text-center mb-3">
+                  <span
+                    className="text-xl font-bold"
+                    style={{
+                      color: "var(--text-primary)",
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    {formatTime(pomodoroSeconds)}
+                  </span>
+                </div>
+                <div className="flex gap-1.5 mb-3">
+                  <button
+                    type="button"
+                    className="flex-1 text-[10px] py-1 rounded font-medium transition-colors"
+                    style={{ background: "var(--accent)", color: "#fff" }}
+                    onClick={() => setPomodoroRunning((v) => !v)}
+                    data-ocid="statusbar.pomodoro_toggle.button"
+                  >
+                    {pomodoroRunning ? "Pause" : "Start"}
+                  </button>
+                  <button
+                    type="button"
+                    className="flex-1 text-[10px] py-1 rounded font-medium transition-colors hover:bg-[var(--hover-item)]"
+                    style={{
+                      color: "var(--text-secondary)",
+                      border: "1px solid var(--border)",
+                    }}
+                    onClick={() => {
+                      setPomodoroRunning(false);
+                      setPomodoroSeconds(25 * 60);
+                    }}
+                    data-ocid="statusbar.pomodoro_reset.button"
+                  >
+                    Reset
+                  </button>
+                </div>
+                <div className="flex gap-1">
+                  {pomodoroPresets.map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      className="flex-1 text-[9px] py-0.5 rounded transition-colors hover:bg-[var(--hover-item)]"
+                      style={{
+                        color: "var(--text-muted)",
+                        border: "1px solid var(--border)",
+                      }}
+                      onClick={() => {
+                        setPomodoroRunning(false);
+                        setPomodoroSeconds(p.value);
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="w-full mt-2 text-[9px] py-0.5 rounded transition-colors hover:bg-[var(--hover-item)]"
+                  style={{ color: "var(--text-muted)" }}
+                  onClick={() => {
+                    if (
+                      typeof Notification !== "undefined" &&
+                      Notification.permission !== "granted"
+                    ) {
+                      Notification.requestPermission();
+                    }
+                  }}
+                >
+                  Enable notifications
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Cloud sync indicator */}

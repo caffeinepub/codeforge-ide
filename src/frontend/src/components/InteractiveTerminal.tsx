@@ -1,6 +1,3 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type React from "react";
-import "@xterm/xterm/css/xterm.css";
 // Terminal packages loaded dynamically to avoid build failures when not installed
 import type {
   DirectoryNode,
@@ -11,6 +8,8 @@ import type {
 import type { FitAddon as FitAddonType } from "@xterm/addon-fit";
 import type { WebLinksAddon as WebLinksAddonType } from "@xterm/addon-web-links";
 import type { Terminal } from "@xterm/xterm";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type React from "react";
 
 // Use a helper that bypasses rollup static analysis
 const _dynamicImport = (pkg: string): Promise<any> => {

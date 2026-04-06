@@ -18,7 +18,23 @@ declare module "@monaco-editor/react" {
     className?: string;
   }
 
+  export interface DiffEditorProps {
+    height?: string | number;
+    width?: string | number;
+    language?: string;
+    theme?: string;
+    original?: string;
+    modified?: string;
+    options?: Record<string, unknown>;
+    onMount?: (editor: Monaco.editor.IStandaloneDiffEditor, monaco: typeof Monaco) => void;
+    loading?: React.ReactNode;
+    className?: string;
+    originalLanguage?: string;
+    modifiedLanguage?: string;
+  }
+
   const Editor: React.FC<EditorProps>;
+  export const DiffEditor: React.FC<DiffEditorProps>;
   export default Editor;
   export { Editor };
 }
@@ -35,6 +51,12 @@ declare module "monaco-editor" {
       updateOptions(options: Record<string, unknown>): void;
       layout(dimension?: IDimension): void;
       addAction(descriptor: IActionDescriptor): IDisposable;
+    }
+
+    interface IStandaloneDiffEditor {
+      getOriginalEditor(): IStandaloneCodeEditor;
+      getModifiedEditor(): IStandaloneCodeEditor;
+      dispose(): void;
     }
 
     interface ITextModel {

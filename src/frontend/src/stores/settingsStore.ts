@@ -9,6 +9,8 @@ export interface IDESettings {
   minimap: boolean;
   lineNumbers: boolean;
   fontLigatures: boolean;
+  stickyScroll: boolean;
+  bracketPairColorization: boolean;
 }
 
 interface SettingsStore {
@@ -26,6 +28,8 @@ const DEFAULT_SETTINGS: IDESettings = {
   minimap: true,
   lineNumbers: true,
   fontLigatures: true,
+  stickyScroll: true,
+  bracketPairColorization: true,
 };
 
 export const useSettingsStore = create<SettingsStore>()(

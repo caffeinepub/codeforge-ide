@@ -25,6 +25,9 @@ interface MenuBarProps {
   onNewTerminal: () => void;
   onToggleFocusMode?: () => void;
   onOpenShortcutOverlay?: () => void;
+  onToggleZenMode?: () => void;
+  onOpenFileTemplates?: () => void;
+  zenMode?: boolean;
 }
 
 type MenuAction = () => void;
@@ -33,6 +36,7 @@ interface MenuItem {
   label: string;
   action?: MenuAction;
   shortcut?: string;
+  checked?: boolean;
 }
 
 type MenuItemOrSep = MenuItem | "---";
@@ -55,6 +59,9 @@ export const MenuBar: React.FC<MenuBarProps> = ({
   onNewTerminal,
   onToggleFocusMode,
   onOpenShortcutOverlay,
+  onToggleZenMode,
+  onOpenFileTemplates,
+  zenMode,
 }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
@@ -110,12 +117,11 @@ export const MenuBar: React.FC<MenuBarProps> = ({
           isDirty: false,
         });
       }
-      if (files.length > 0) {
+      if (files.length > 0)
         notify(
           `Opened ${files.length} file${files.length !== 1 ? "s" : ""}`,
           "success",
         );
-      }
     } catch (err) {
       notify(`Failed to open file: ${(err as Error).message}`, "error");
     }
@@ -157,9 +163,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         content: f.content,
       })),
     );
-    for (const f of openFiles) {
-      markFileDirty(f.id, false);
-    }
+    for (const f of openFiles) markFileDirty(f.id, false);
     notify(`All ${openFiles.length} files saved`, "success");
   };
 
@@ -172,15 +176,12 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       label: "File",
       items: [
         { label: "New File", action: handleNewFile, shortcut: "Ctrl+N" },
+        { label: "New from Template...", action: onOpenFileTemplates },
         { label: "Open Folder...", action: handleOpenFolder },
         { label: "Open File...", action: handleOpenFile, shortcut: "Ctrl+O" },
         "---",
         { label: "Save", action: handleSave, shortcut: "Ctrl+S" },
-        {
-          label: "Save As...",
-          action: handleSaveAs,
-          shortcut: "Ctrl+Shift+S",
-        },
+        { label: "Save As...", action: handleSaveAs, shortcut: "Ctrl+Shift+S" },
         { label: "Save All", action: handleSaveAll, shortcut: "Ctrl+K S" },
         "---",
         {
@@ -336,6 +337,41 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         },
         "---",
         {
+          label: `Word Wrap${settings.wordWrap ? " ✓" : ""}`,
+          action: () => {
+            updateSettings({ wordWrap: !settings.wordWrap });
+            notify(`Word Wrap ${!settings.wordWrap ? "enabled" : "disabled"}`);
+          },
+        },
+        {
+          label: `Sticky Scroll${settings.stickyScroll ? " ✓" : ""}`,
+          action: () => {
+            updateSettings({ stickyScroll: !settings.stickyScroll });
+            notify(
+              `Sticky Scroll ${!settings.stickyScroll ? "enabled" : "disabled"}`,
+            );
+          },
+        },
+        {
+          label: `Bracket Pair Colorization${settings.bracketPairColorization ? " ✓" : ""}`,
+          action: () => {
+            updateSettings({
+              bracketPairColorization: !settings.bracketPairColorization,
+            });
+            notify(
+              `Bracket Colorization ${!settings.bracketPairColorization ? "enabled" : "disabled"}`,
+            );
+          },
+        },
+        "---",
+        {
+          label: `Zen Mode${zenMode ? " ✓" : ""}`,
+          action: onToggleZenMode,
+          shortcut: "Ctrl+K Z",
+        },
+        { label: "File Templates...", action: onOpenFileTemplates },
+        "---",
+        {
           label: "Zoom In",
           action: () => {
             const next = Math.min(24, settings.fontSize + 1);
@@ -446,7 +482,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
       items: [
         {
           label: "Welcome",
-          action: () => {
+          action: () =>
             openFile({
               id: "welcome",
               name: "Welcome",
@@ -454,8 +490,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
               content: "",
               language: "plaintext",
               isDirty: false,
-            });
-          },
+            }),
         },
         {
           label: "Documentation",
@@ -471,7 +506,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         {
           label: "About CodeVeda",
           action: () =>
-            notify("CodeVeda v4.0.0 \u2014 A VS Code-like IDE for ICP"),
+            notify("CodeVeda v7.0.0 \u2014 A VS Code-like IDE for ICP"),
         },
       ],
     },
@@ -499,7 +534,6 @@ export const MenuBar: React.FC<MenuBarProps> = ({
         WebkitBackdropFilter: "blur(8px)",
       }}
     >
-      {/* Premium brand logo */}
       <div className="flex items-center gap-1.5 mr-3 flex-shrink-0">
         <span
           className="zap-pulse"
@@ -534,7 +568,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             lineHeight: 1,
           }}
         >
-          v4.0
+          v7.0
         </span>
       </div>
 
@@ -558,7 +592,7 @@ export const MenuBar: React.FC<MenuBarProps> = ({
 
           {openMenu === menu.label && (
             <div
-              className="absolute top-full left-0 min-w-[220px] rounded shadow-2xl border border-[var(--border)] py-1 z-50"
+              className="absolute top-full left-0 min-w-[240px] rounded shadow-2xl border border-[var(--border)] py-1 z-50"
               style={{ background: "var(--bg-sidebar)", marginTop: 2 }}
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => {

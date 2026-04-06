@@ -7,6 +7,7 @@ import { AdminDashboard } from "./components/AdminDashboard";
 import type { PanelTab } from "./components/BottomPanel";
 import { BottomPanel } from "./components/BottomPanel";
 import { CommandPalette } from "./components/CommandPalette";
+import { FileTemplatesDialog } from "./components/FileTemplatesDialog";
 import { LoginDialog } from "./components/LoginDialog";
 import { MenuBar } from "./components/MenuBar";
 import { MobileBottomNav } from "./components/MobileBottomNav";
@@ -45,8 +46,9 @@ const ALL_SHORTCUTS = [
   { key: "Ctrl+Shift+S", action: "Save to Cloud" },
   { key: "Ctrl+B", action: "Toggle Sidebar" },
   { key: "Ctrl+`", action: "Toggle Terminal" },
-  { key: "Ctrl+\\", action: "Split Editor" },
+  { key: "Ctrl+\\\\", action: "Split Editor" },
   { key: "Ctrl+Shift+F11", action: "Focus Mode" },
+  { key: "Ctrl+K Z", action: "Zen Mode" },
   { key: "Shift+?", action: "Keyboard Overlay" },
   { key: "Ctrl+Shift+E", action: "Open Explorer" },
   { key: "Ctrl+Shift+F", action: "Search in Files" },
@@ -59,6 +61,7 @@ const ALL_SHORTCUTS = [
   { key: "Ctrl+/", action: "Toggle Line Comment" },
   { key: "Alt+Up", action: "Move Line Up" },
   { key: "Alt+Down", action: "Move Line Down" },
+  { key: "Alt+Click", action: "Add Multi-Cursor" },
   { key: "Ctrl+D", action: "Select Next Occurrence" },
   { key: "Ctrl+Shift+K", action: "Delete Line" },
   { key: "Ctrl+Enter", action: "Insert Line Below" },
@@ -84,7 +87,9 @@ function IDELayout() {
   const [loginVisible, setLoginVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const [zenMode, setZenMode] = useState(false);
   const [shortcutOverlayVisible, setShortcutOverlayVisible] = useState(false);
+  const [fileTemplatesVisible, setFileTemplatesVisible] = useState(false);
   const [cloudSyncStatus, _setCloudSyncStatus] = useState<
     "idle" | "syncing" | "synced" | "error"
   >("idle");
@@ -99,17 +104,18 @@ function IDELayout() {
     MobileNavTab | undefined
   >(undefined);
 
-  // Bottom panel ref for tab control
   const bottomPanelRef = useRef<BottomPanelHandle>(null);
 
-  // Disable split on mobile
   useEffect(() => {
     if (isMobile) setSplitMode(false);
   }, [isMobile, setSplitMode]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     if (isMobile) return;
+    // Track Ctrl+K sequence
+    let ctrlKPending = false;
+    let ctrlKTimer: ReturnType<typeof setTimeout> | null = null;
+
     const handler = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
       if (ctrl && e.key === "b") {
@@ -120,23 +126,41 @@ function IDELayout() {
         e.preventDefault();
         setBottomPanelVisible((v) => !v);
       }
-      // Focus mode: Ctrl+Shift+F11
       if (ctrl && e.shiftKey && e.key === "F11") {
         e.preventDefault();
         setFocusMode((v) => !v);
       }
-      // Keyboard overlay: Shift+?
       if (e.shiftKey && e.key === "?") {
         e.preventDefault();
         setShortcutOverlayVisible((v) => !v);
       }
-      // Escape closes overlay
       if (e.key === "Escape") {
         setShortcutOverlayVisible(false);
+        setZenMode(false);
+      }
+
+      // Ctrl+K Z for Zen Mode
+      if (ctrl && e.key === "k") {
+        e.preventDefault();
+        ctrlKPending = true;
+        if (ctrlKTimer) clearTimeout(ctrlKTimer);
+        ctrlKTimer = setTimeout(() => {
+          ctrlKPending = false;
+        }, 1500);
+        return;
+      }
+      if (ctrlKPending && e.key === "z") {
+        e.preventDefault();
+        ctrlKPending = false;
+        if (ctrlKTimer) clearTimeout(ctrlKTimer);
+        setZenMode((v) => !v);
       }
     };
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      if (ctrlKTimer) clearTimeout(ctrlKTimer);
+    };
   }, [isMobile]);
 
   const handleActivityChange = (panel: ActivityTab) => {
@@ -188,7 +212,6 @@ function IDELayout() {
     }
   };
 
-  // Panel actions
   const cmdOpenAI = () => setAiPanelVisible((v) => !v);
   const cmdOpenAdmin = () => setAdminVisible(true);
   const cmdOpenGit = () => {
@@ -307,6 +330,10 @@ function IDELayout() {
         {profileVisible && (
           <UserProfilePanel onClose={() => setProfileVisible(false)} />
         )}
+        <FileTemplatesDialog
+          isOpen={fileTemplatesVisible}
+          onClose={() => setFileTemplatesVisible(false)}
+        />
       </div>
     );
   }
@@ -321,66 +348,97 @@ function IDELayout() {
         background: "var(--bg-editor)",
       }}
     >
-      <MenuBar
-        sidebarVisible={sidebarVisible}
-        bottomPanelVisible={bottomPanelVisible}
-        onToggleSidebar={() => setSidebarVisible((v) => !v)}
-        onToggleBottomPanel={() => setBottomPanelVisible((v) => !v)}
-        onOpenCommandPalette={cmdOpenCommandPalette}
-        onOpenSearch={cmdOpenSearch}
-        onOpenExplorer={cmdOpenExplorer}
-        onOpenExtensions={cmdOpenExtensions}
-        onOpenGit={cmdOpenGit}
-        onOpenAI={cmdOpenAI}
-        onOpenProfile={cmdOpenProfile}
-        onNewTerminal={cmdNewTerminal}
-        onToggleFocusMode={() => setFocusMode((v) => !v)}
-        onOpenShortcutOverlay={() => setShortcutOverlayVisible(true)}
-      />
-      <div className="flex flex-1 overflow-hidden">
-        <ActivityBar
-          activePanel={activePanel}
-          onPanelChange={handleActivityChange}
-        />
-        {sidebarVisible && (
-          <>
-            <Sidebar
-              activePanel={activePanel}
-              width={sidebarWidth}
-              onOpenGitHub={cmdOpenGitHub}
-            />
-            <ResizeHandle
-              direction="horizontal"
-              onResize={handleSidebarResize}
-            />
-          </>
-        )}
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <div className="flex flex-1 overflow-hidden">
-            <SplitEditor />
-          </div>
-          <BottomPanel
-            ref={bottomPanelRef}
-            visible={bottomPanelVisible}
-            height={bottomPanelHeight}
-            onHeightChange={setBottomPanelHeight}
-            onToggle={() => setBottomPanelVisible(false)}
-          />
+      {/* Zen Mode: show only editor */}
+      {zenMode ? (
+        <div
+          className="flex flex-1 overflow-hidden relative"
+          style={{ height: "100vh" }}
+        >
+          <SplitEditor />
+          {/* Floating exit pill */}
+          <button
+            type="button"
+            onClick={() => setZenMode(false)}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full text-xs font-medium shadow-2xl z-50 transition-all hover:scale-105"
+            style={{
+              background: "rgba(0,122,204,0.85)",
+              color: "#fff",
+              border: "1px solid rgba(97,218,251,0.3)",
+              backdropFilter: "blur(8px)",
+            }}
+            data-ocid="zen_mode.exit.button"
+          >
+            Exit Zen Mode (Esc or Ctrl+K Z)
+          </button>
         </div>
-        {aiPanelVisible && (
-          <AIAssistantPanel
-            onClose={() => setAiPanelVisible(false)}
-            width={320}
+      ) : (
+        <>
+          <MenuBar
+            sidebarVisible={sidebarVisible}
+            bottomPanelVisible={bottomPanelVisible}
+            onToggleSidebar={() => setSidebarVisible((v) => !v)}
+            onToggleBottomPanel={() => setBottomPanelVisible((v) => !v)}
+            onOpenCommandPalette={cmdOpenCommandPalette}
+            onOpenSearch={cmdOpenSearch}
+            onOpenExplorer={cmdOpenExplorer}
+            onOpenExtensions={cmdOpenExtensions}
+            onOpenGit={cmdOpenGit}
+            onOpenAI={cmdOpenAI}
+            onOpenProfile={cmdOpenProfile}
+            onNewTerminal={cmdNewTerminal}
+            onToggleFocusMode={() => setFocusMode((v) => !v)}
+            onOpenShortcutOverlay={() => setShortcutOverlayVisible(true)}
+            onToggleZenMode={() => setZenMode((v) => !v)}
+            onOpenFileTemplates={() => setFileTemplatesVisible(true)}
+            zenMode={zenMode}
           />
-        )}
-      </div>
-      <StatusBar
-        onOpenGit={cmdOpenGit}
-        onOpenLogin={() => setLoginVisible(true)}
-        onOpenProfile={cmdOpenProfile}
-        onOpenCloud={cmdOpenCloud}
-        cloudSyncStatus={cloudSyncStatus}
-      />
+          <div className="flex flex-1 overflow-hidden">
+            <ActivityBar
+              activePanel={activePanel}
+              onPanelChange={handleActivityChange}
+            />
+            {sidebarVisible && (
+              <>
+                <Sidebar
+                  activePanel={activePanel}
+                  width={sidebarWidth}
+                  onOpenGitHub={cmdOpenGitHub}
+                />
+                <ResizeHandle
+                  direction="horizontal"
+                  onResize={handleSidebarResize}
+                />
+              </>
+            )}
+            <div className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex flex-1 overflow-hidden">
+                <SplitEditor />
+              </div>
+              <BottomPanel
+                ref={bottomPanelRef}
+                visible={bottomPanelVisible}
+                height={bottomPanelHeight}
+                onHeightChange={setBottomPanelHeight}
+                onToggle={() => setBottomPanelVisible(false)}
+              />
+            </div>
+            {aiPanelVisible && (
+              <AIAssistantPanel
+                onClose={() => setAiPanelVisible(false)}
+                width={320}
+              />
+            )}
+          </div>
+          <StatusBar
+            onOpenGit={cmdOpenGit}
+            onOpenLogin={() => setLoginVisible(true)}
+            onOpenProfile={cmdOpenProfile}
+            onOpenCloud={cmdOpenCloud}
+            cloudSyncStatus={cloudSyncStatus}
+          />
+        </>
+      )}
+
       <CommandPalette
         onOpenAI={cmdOpenAI}
         onOpenAdmin={cmdOpenAdmin}
@@ -402,16 +460,17 @@ function IDELayout() {
       {profileVisible && (
         <UserProfilePanel onClose={() => setProfileVisible(false)} />
       )}
+      <FileTemplatesDialog
+        isOpen={fileTemplatesVisible}
+        onClose={() => setFileTemplatesVisible(false)}
+      />
 
       {/* Keyboard Shortcut Overlay */}
       {shortcutOverlayVisible && (
         <dialog
           open
           className="fixed inset-0 z-[9999] flex items-center justify-center w-full h-full max-w-none max-h-none p-0 m-0 border-0"
-          style={{
-            background: "rgba(0,0,0,0.8)",
-            backdropFilter: "blur(8px)",
-          }}
+          style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(8px)" }}
           onClick={() => setShortcutOverlayVisible(false)}
           onKeyDown={(e) =>
             e.key === "Escape" && setShortcutOverlayVisible(false)

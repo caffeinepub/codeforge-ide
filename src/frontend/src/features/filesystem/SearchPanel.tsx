@@ -1,12 +1,11 @@
-import { Search, X } from "lucide-react";
+import { Replace, Search, X } from "lucide-react";
 import type React from "react";
 import { useRef, useState } from "react";
 import { useMemo } from "react";
 import { useEditorStore } from "../../stores/editorStore";
 import { useFilesystemStore } from "../../stores/filesystemStore";
 import { FileIcon } from "./FileIcon";
-import { FILE_CONTENTS } from "./mockFileSystem";
-import { getLanguageFromPath } from "./mockFileSystem";
+import { FILE_CONTENTS, getLanguageFromPath } from "./mockFileSystem";
 import type { FSNode } from "./mockFileSystem";
 
 interface SearchResult {
@@ -31,7 +30,10 @@ function findNodeIdByPath(path: string, nodes: FSNode[]): string | null {
 
 export const SearchPanel: React.FC = () => {
   const [query, setQuery] = useState("");
-  const { openFile } = useEditorStore();
+  const [replaceText, setReplaceText] = useState("");
+  const [replaceVisible, setReplaceVisible] = useState(false);
+  const [replaceMsg, setReplaceMsg] = useState<string | null>(null);
+  const { openFile, openFiles, updateFileContent } = useEditorStore();
   const { fileTree } = useFilesystemStore();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -45,34 +47,29 @@ export const SearchPanel: React.FC = () => {
       const fileName = path.split("/").pop() ?? path;
       const fileId = findNodeIdByPath(path, fileTree) ?? path;
       const language = getLanguageFromPath(path);
-
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const lowerLine = line.toLowerCase();
-        if (lowerLine.includes(lowerQuery)) {
+        if (lines[i].toLowerCase().includes(lowerQuery)) {
           found.push({
             filePath: path,
             fileName,
             fileId,
             language,
             lineNumber: i + 1,
-            lineContent: line.trim(),
+            lineContent: lines[i].trim(),
           });
           if (found.length >= 200) break;
         }
       }
       if (found.length >= 200) break;
     }
-
     return found;
   }, [query, fileTree]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, SearchResult[]>();
     for (const r of results) {
-      const key = r.filePath;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(r);
+      if (!map.has(r.filePath)) map.set(r.filePath, []);
+      map.get(r.filePath)!.push(r);
     }
     return map;
   }, [results]);
@@ -87,6 +84,32 @@ export const SearchPanel: React.FC = () => {
       language: result.language,
       isDirty: false,
     });
+  };
+
+  const handleReplaceAll = () => {
+    if (!query.trim() || query.length < 2) return;
+    let totalOccurrences = 0;
+    let filesAffected = 0;
+    const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+
+    for (const file of openFiles) {
+      const matches = (file.content.match(regex) || []).length;
+      if (matches > 0) {
+        const newContent = file.content.replace(regex, replaceText);
+        updateFileContent(file.id, newContent);
+        totalOccurrences += matches;
+        filesAffected++;
+      }
+    }
+
+    if (totalOccurrences > 0) {
+      setReplaceMsg(
+        `Replaced ${totalOccurrences} occurrence${totalOccurrences !== 1 ? "s" : ""} in ${filesAffected} file${filesAffected !== 1 ? "s" : ""}`,
+      );
+    } else {
+      setReplaceMsg("No occurrences found in open files");
+    }
+    setTimeout(() => setReplaceMsg(null), 4000);
   };
 
   const highlight = (text: string, q: string) => {
@@ -105,7 +128,8 @@ export const SearchPanel: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-3 py-2">
+      <div className="px-3 py-2 space-y-1.5">
+        {/* Search input */}
         <div className="relative">
           <Search
             size={12}
@@ -116,19 +140,76 @@ export const SearchPanel: React.FC = () => {
             className="w-full bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-primary)] text-xs rounded px-6 py-1.5 outline-none focus:border-[var(--accent)] placeholder-[var(--text-muted)]"
             placeholder="Search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setReplaceMsg(null);
+            }}
             data-ocid="search.search_input"
           />
+          <button
+            type="button"
+            onClick={() => setReplaceVisible((v) => !v)}
+            className={`absolute right-6 top-1/2 -translate-y-1/2 transition-colors ${replaceVisible ? "text-[var(--accent)]" : "text-[var(--icon-inactive)] hover:text-[var(--text-primary)]"}`}
+            title="Toggle Replace"
+          >
+            <Replace size={11} />
+          </button>
           {query && (
             <button
               type="button"
-              onClick={() => setQuery("")}
+              onClick={() => {
+                setQuery("");
+                setReplaceMsg(null);
+              }}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--icon-inactive)] hover:text-[var(--text-primary)]"
             >
               <X size={11} />
             </button>
           )}
         </div>
+
+        {/* Replace input */}
+        {replaceVisible && (
+          <div className="flex gap-1.5">
+            <div className="relative flex-1">
+              <input
+                className="w-full bg-[var(--bg-input)] border border-[var(--border)] text-[var(--text-primary)] text-xs rounded px-2 py-1.5 outline-none focus:border-[var(--accent)] placeholder-[var(--text-muted)]"
+                placeholder="Replace with"
+                value={replaceText}
+                onChange={(e) => setReplaceText(e.target.value)}
+                data-ocid="search.replace_input"
+              />
+            </div>
+            <button
+              type="button"
+              className="px-2 py-1 text-[10px] font-medium rounded transition-colors flex-shrink-0"
+              style={{
+                background:
+                  query.length >= 2 ? "var(--accent)" : "var(--bg-input)",
+                color: query.length >= 2 ? "#fff" : "var(--text-muted)",
+              }}
+              onClick={handleReplaceAll}
+              disabled={query.length < 2}
+              data-ocid="search.replace_all.button"
+            >
+              Replace All
+            </button>
+          </div>
+        )}
+
+        {replaceMsg && (
+          <p
+            className="text-[10px] px-1"
+            style={{
+              color: replaceMsg.startsWith("No")
+                ? "var(--text-muted)"
+                : "#22c55e",
+            }}
+          >
+            {replaceMsg}
+          </p>
+        )}
+
         {query.length > 0 && query.length < 2 && (
           <p className="text-[10px] text-[var(--text-muted)] mt-1">
             Type at least 2 characters
