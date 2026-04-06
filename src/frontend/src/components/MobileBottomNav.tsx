@@ -1,7 +1,12 @@
-import { Bot, Files, Search, Settings } from "lucide-react";
+import { Bot, Files, GitFork, Settings, Terminal } from "lucide-react";
 import type React from "react";
 
-type MobileNavTab = "explorer" | "search" | "ai" | "settings";
+export type MobileNavTab =
+  | "explorer"
+  | "github"
+  | "ai"
+  | "terminal"
+  | "settings";
 
 interface MobileBottomNavProps {
   activeTab?: MobileNavTab;
@@ -10,10 +15,11 @@ interface MobileBottomNavProps {
 
 const NAV_ITEMS: { id: MobileNavTab; icon: React.ReactNode; label: string }[] =
   [
-    { id: "explorer", icon: <Files size={20} />, label: "Explorer" },
-    { id: "search", icon: <Search size={20} />, label: "Search" },
-    { id: "ai", icon: <Bot size={20} />, label: "AI" },
-    { id: "settings", icon: <Settings size={20} />, label: "Settings" },
+    { id: "explorer", icon: <Files size={19} />, label: "Files" },
+    { id: "github", icon: <GitFork size={19} />, label: "GitHub" },
+    { id: "ai", icon: <Bot size={19} />, label: "AI" },
+    { id: "terminal", icon: <Terminal size={19} />, label: "Terminal" },
+    { id: "settings", icon: <Settings size={19} />, label: "Settings" },
   ];
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({

@@ -15,6 +15,18 @@ interface EditorPaneProps {
   isPrimary?: boolean;
 }
 
+const TOUCH_KEYS: { label: string; text: string }[] = [
+  { label: "\u21E4 Tab", text: "\t" },
+  { label: "{ }", text: "{}" },
+  { label: "[ ]", text: "[]" },
+  { label: "( )", text: "()" },
+  { label: '" "', text: '""' },
+  { label: "' '", text: "''" },
+  { label: ";", text: ";" },
+  { label: "Del", text: "__DEL__" },
+  { label: "Enter", text: "\n" },
+];
+
 export const EditorPane: React.FC<EditorPaneProps> = ({ isPrimary = true }) => {
   const {
     openFiles,
@@ -98,6 +110,19 @@ export const EditorPane: React.FC<EditorPaneProps> = ({ isPrimary = true }) => {
     autoIndent: "full",
     formatOnPaste: true,
     formatOnType: true,
+  };
+
+  const handleTouchKey = (key: { label: string; text: string }) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    // biome-ignore lint/suspicious/noExplicitAny: Monaco trigger API not in type stubs
+    const e = editor as any;
+    if (key.text === "__DEL__") {
+      e.trigger("keyboard", "deleteLeft", null);
+    } else {
+      e.trigger("keyboard", "type", { text: key.text });
+    }
+    editor.focus();
   };
 
   return (
@@ -197,17 +222,88 @@ export const EditorPane: React.FC<EditorPaneProps> = ({ isPrimary = true }) => {
       {!activeFile ? (
         <WelcomeTab />
       ) : (
-        <div className="flex-1 overflow-hidden">
-          <MonacoEditorCDN
-            key={activeFile.id}
-            height="100%"
-            theme={monacoTheme}
-            language={activeFile.language}
-            value={activeFile.content}
-            onChange={(val) => updateFileContent(activeFile.id, val ?? "")}
-            onMount={handleEditorMount}
-            options={editorOptions}
-          />
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden">
+            <MonacoEditorCDN
+              key={activeFile.id}
+              height="100%"
+              theme={monacoTheme}
+              language={activeFile.language}
+              value={activeFile.content}
+              onChange={(val) => updateFileContent(activeFile.id, val ?? "")}
+              onMount={handleEditorMount}
+              options={editorOptions}
+            />
+          </div>
+          {/* Mobile touch toolbar */}
+          {isMobile && (
+            <div
+              className="flex-shrink-0 flex items-center overflow-x-auto border-t border-[var(--border)]"
+              style={{
+                height: 44,
+                background: "var(--bg-activity)",
+                gap: 2,
+                padding: "0 4px",
+              }}
+              data-ocid="editor.mobile.toolbar.panel"
+            >
+              {TOUCH_KEYS.map((key) => (
+                <button
+                  key={key.label}
+                  type="button"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    handleTouchKey(key);
+                  }}
+                  className="flex-shrink-0 flex items-center justify-center rounded transition-colors active:opacity-60"
+                  style={{
+                    minWidth: 44,
+                    height: 32,
+                    background: "var(--bg-input)",
+                    border: "1px solid var(--border)",
+                    color: "var(--text-primary)",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 11,
+                    cursor: "pointer",
+                  }}
+                  data-ocid={`editor.touch.${key.label.toLowerCase().replace(/[^a-z0-9]/g, "")}.button`}
+                >
+                  {key.label}
+                </button>
+              ))}
+              {/* Arrow keys */}
+              {(["\u2190", "\u2192"] as const).map((arrow) => (
+                <button
+                  key={arrow}
+                  type="button"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    const editor = editorRef.current;
+                    if (!editor) return;
+                    const action =
+                      arrow === "\u2190" ? "cursorLeft" : "cursorRight";
+                    // biome-ignore lint/suspicious/noExplicitAny: Monaco trigger not in stubs
+                    (editor as any).trigger("keyboard", action, null);
+                    editor.focus();
+                  }}
+                  className="flex-shrink-0 flex items-center justify-center rounded transition-colors active:opacity-60"
+                  style={{
+                    minWidth: 40,
+                    height: 32,
+                    background: "var(--bg-input)",
+                    border: "1px solid var(--border)",
+                    color: "var(--text-primary)",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                  data-ocid="editor.touch.arrow.button"
+                >
+                  {arrow}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1,61 +1,67 @@
-# CodeVeda Phase 7 - 15+ New Features
+# CodeVeda — Phase 8: Advanced GitHub + AI Chat + Mobile-First Overhaul
 
 ## Current State
-CodeVeda is a full-featured web-based IDE with:
-- Monaco Editor with multi-tab editing, split view
-- Activity bar with: Explorer, Search, Git, GitHub, Extensions, Snippets, Preview, AI Assistant, Admin Dashboard, Profile, Code Intelligence, Scratch Pad, Bookmarks, Recent Files, Cloud Files
-- Bottom panel with Terminal (xterm.js + WebContainers), Output, Problems, Performance tabs
-- Themes: VS Dark, VS Light, Monokai, Solarized Dark, Dracula, Nord, One Dark Pro, High Contrast (8 total)
-- Menu bar with full menus wired to actions
-- Command palette with glassmorphism
-- Status bar with git branch, language, vim mode toggle, LIVE badge, cloud sync status
-- ICP backend with user profiles, files, snippets, bookmarks, scratch pad, session history, projects
-- Mobile responsive layout
-- Keyboard shortcut overlay (Shift+?), Focus Mode (Ctrl+Shift+F11)
-- Real file system API support (open folder/file, save, save as)
-- GitHub integration panel
+- Monaco Editor IDE with multi-tab editing, split panes, file explorer, themes
+- ActivityBar with 16 panels including GitHub (GitFork), AI Assistant (Bot), Terminal, Source Control
+- GitHubPanel: PAT-based auth, repo browser, branch switcher, PR list with status badges, push/pull/fetch ops
+- AIAssistantPanel: Chat sidebar with quick-action chips (Explain/Fix/Refactor/Generate/ICP), code blocks with copy buttons, persist via zustand
+- MobileBottomNav: Only 4 tabs (Explorer, Search, AI, Settings)
+- MobileHeader: Shows "CodeForge" (old name), basic hamburger + new file + command palette
+- StatusBar, Breadcrumbs, EditorToolbar all working
+- Backend: ICP canister with authorization, blob-storage for file/profile/settings persistence
 
 ## Requested Changes (Diff)
 
 ### Add
-1. **Minimap panel** - Code minimap toggle in editor toolbar (Monaco already supports this - just add a toggle button)
-2. **Breadcrumb navigation** - File path breadcrumbs above the editor tabs showing current folder > file > symbol path
-3. **Multi-cursor editing hints** - Show multi-cursor tips in the status bar (Click + Alt+Click for multi-cursor)
-4. **Code Diff Viewer** - New panel in bottom: "Diff" tab to compare two files side by side (Monaco DiffEditor)
-5. **Pomodoro Timer** - Focus/productivity timer widget in the status bar with start/pause/reset
-6. **Color Picker** - Inline color picker that appears when clicking a hex/rgb color value in code
-7. **Word Wrap Toggle** - Toggle word wrap button in editor toolbar / View menu
-8. **Indent Guides toggle** - Toggle indentation guides in View menu
-9. **Zen Mode** - Similar to Focus Mode but hides everything except the editor (even tabs + menu bar)
-10. **Find in Files** - Improved search panel in the sidebar with replace functionality
-11. **File Templates** - New File menu option to create files from templates (HTML, CSS, JS, TS, React, etc.)
-12. **Editor Font Size Control** - +/- buttons in the status bar or settings to adjust editor font size live
-13. **Live Statistics** - Word count, char count, line count displayed in the status bar for the active file
-14. **Pinned Tabs** - Right-click tab to pin it (stays at the left, can't be accidentally closed)
-15. **Tab Groups / Colors** - Right-click tab to assign a color tag for visual grouping
-16. **Bracket Pair Colorization** - Toggle in settings to enable/disable bracket pair colorization
-17. **Sticky Scroll** - Toggle sticky scroll (scroll and class/function headers stick at top of editor)
+- **AI Chat Redesign**: Full ChatGPT-style conversational sidebar with:
+  - Conversation threads/history (multiple named sessions, switchable)
+  - File context badge — active file name auto-attached to every message
+  - "Insert into editor" button on AI code responses
+  - Conversation export (copy all as markdown)
+  - AI model selector display (GPT-4o / Claude / CodeLlama labels, cosmetic)
+  - Smarter canned responses for: test generation, docs generation, architecture, code review
+  - Typing animation with streamed character effect
+  - Keyboard shortcut: Ctrl+Shift+A to toggle AI panel
+
+- **GitHub Panel Upgrades**:
+  - Commit history timeline (visual list with SHA, message, author, time-ago)
+  - File diff viewer embedded inside panel (side-by-side or inline toggle)
+  - AI-powered PR review button (generates AI review comment)
+  - Commit message AI generator (button in commit area)
+  - Issues tab (list with open/closed filter, label badges)
+  - Commit staging area (checkboxes per file, commit message input, commit button)
+
+- **Mobile-First Overhaul**:
+  - MobileBottomNav expanded to 5 tabs: Explorer, GitHub, AI, Terminal, Settings
+  - MobileHeader renamed to CodeVeda (not CodeForge)
+  - Floating AI FAB button (bottom-right corner) on all mobile screens
+  - Slide-in drawer for GitHub panel on mobile (full-height)
+  - Mobile-optimized AI chat (full-screen overlay on small screens)
+  - Swipe gestures hint overlays
+  - Mobile toolbar row below editor for: Undo, Redo, Tab, {}, [], () buttons (touch keyboard helpers)
+
+- **Editor Enhancements**:
+  - Go to line (Ctrl+G) input in command palette
+  - Code action quick-fix tooltip (simulated lightbulb on errors)
+  - Multi-file find & replace (already has single-file, extend to multi)
 
 ### Modify
-- StatusBar: add live file stats (word count, lines, chars), Pomodoro timer widget, font size controls
-- BottomPanel: add Diff tab with Monaco DiffEditor
-- MenuBar View menu: add Word Wrap, Indent Guides, Zen Mode, Sticky Scroll toggles
-- EditorStore: add fontSize state, wordWrap state, pinnedTabs state, tabColors state, zenMode state
-- SplitEditor / editor toolbar: add minimap toggle, word wrap toggle, font size buttons
-- Sidebar Search panel: add Replace field for Find in Files with replace action
-- Tab bar: support pinned tabs (visual pin indicator), tab color tags, right-click context menu
+- AIAssistantPanel: Full redesign to ChatGPT-style with conversation history, file context, insert-to-editor
+- GitHubPanel: Add tabs (Overview, Commits, Issues, Diff) with proper section navigation
+- MobileBottomNav: Add GitHub and Terminal tabs, 5 total tabs
+- MobileHeader: Fix branding from "CodeForge" to "CodeVeda"
+- ActivityBar: No structural changes needed
+- App.tsx: Wire new mobile tabs (github, terminal) to existing panels
 
 ### Remove
-- Nothing removed
+- Nothing removed — all existing features preserved
 
 ## Implementation Plan
-1. Update `editorStore.ts` - add fontSize, wordWrap, minimapEnabled, pinnedTabs, tabColors, zenMode, bracketPairColorization, stickyScroll state
-2. Update `SplitEditor.tsx` / editor area - breadcrumbs bar, toolbar with minimap/wordwrap/fontzize toggles, Zen mode overlay
-3. Update `StatusBar.tsx` - add file stats section, pomodoro timer widget, font size +/- buttons
-4. Update `BottomPanel.tsx` - add Diff tab with Monaco DiffEditor
-5. Update `MenuBar.tsx` View menu - add new toggles
-6. Update `Sidebar.tsx` Search panel - add replace functionality
-7. Update tab bar in `SplitEditor.tsx` - pinned tabs, color tags, right-click context menu
-8. Add `FileTemplatesDialog.tsx` - new file from template dialog
-9. Add `PomodoroTimer.tsx` - standalone pomodoro timer component used in status bar
-10. Wire everything together in App.tsx where needed
+1. **Redesign AIAssistantPanel** — conversation threads, file context, insert-to-editor, streaming animation, smarter responses for test/docs/arch/review
+2. **Upgrade GitHubPanel** — add Commits tab with history timeline, Issues tab, Diff viewer, AI commit message generator, AI PR review, staging area
+3. **Overhaul MobileBottomNav** — 5 tabs: Explorer, GitHub, AI, Terminal, Settings
+4. **Fix MobileHeader** — update CodeForge → CodeVeda branding
+5. **Add mobile floating AI FAB** — bottom-right overlay button for quick AI access on mobile
+6. **Add mobile editor touch toolbar** — row of touch-friendly code insertion buttons below Monaco on mobile
+7. **Wire App.tsx** — connect new mobile tabs to existing GitHubPanel and InteractiveTerminal
+8. **Add aiStore conversation threads** — extend aiStore to support named sessions/history

@@ -1,4 +1,4 @@
-import { Command, Menu, Plus } from "lucide-react";
+import { Command, Menu, Plus, Zap } from "lucide-react";
 import type React from "react";
 import { useEditorStore } from "../stores/editorStore";
 import { useFilesystemStore } from "../stores/filesystemStore";
@@ -48,12 +48,16 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ onMenuOpen }) => {
 
       {/* Center: app name */}
       <div className="flex items-center gap-1.5">
-        <span className="text-base">&#9889;</span>
+        <Zap size={14} style={{ color: "var(--accent)" }} />
         <span
           className="text-sm font-bold"
-          style={{ color: "var(--text-primary)" }}
+          style={{
+            background: "linear-gradient(135deg, var(--accent), #a855f7)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
         >
-          CodeForge
+          CodeVeda
         </span>
       </div>
 

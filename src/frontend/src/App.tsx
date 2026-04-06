@@ -8,9 +8,11 @@ import type { PanelTab } from "./components/BottomPanel";
 import { BottomPanel } from "./components/BottomPanel";
 import { CommandPalette } from "./components/CommandPalette";
 import { FileTemplatesDialog } from "./components/FileTemplatesDialog";
+import { GitHubPanel } from "./components/GitHubPanel";
 import { LoginDialog } from "./components/LoginDialog";
 import { MenuBar } from "./components/MenuBar";
 import { MobileBottomNav } from "./components/MobileBottomNav";
+import type { MobileNavTab } from "./components/MobileBottomNav";
 import { MobileHeader } from "./components/MobileHeader";
 import { MobileMenuDrawer } from "./components/MobileMenuDrawer";
 import { MobileSidebar } from "./components/MobileSidebar";
@@ -26,8 +28,6 @@ import { useEditorShortcuts } from "./features/editor/useEditorShortcuts";
 import { ThemeProvider } from "./features/theme/ThemeProvider";
 import { useIsMobile } from "./hooks/use-mobile";
 import { useEditorStore } from "./stores/editorStore";
-
-type MobileNavTab = "explorer" | "search" | "ai" | "settings";
 
 const MIN_SIDEBAR_WIDTH = 150;
 const MAX_SIDEBAR_WIDTH = 520;
@@ -50,6 +50,7 @@ const ALL_SHORTCUTS = [
   { key: "Ctrl+Shift+F11", action: "Focus Mode" },
   { key: "Ctrl+K Z", action: "Zen Mode" },
   { key: "Shift+?", action: "Keyboard Overlay" },
+  { key: "Ctrl+Shift+A", action: "Focus AI Input" },
   { key: "Ctrl+Shift+E", action: "Open Explorer" },
   { key: "Ctrl+Shift+F", action: "Search in Files" },
   { key: "Ctrl+Shift+G", action: "Source Control" },
@@ -103,6 +104,7 @@ function IDELayout() {
   const [mobileActiveTab, setMobileActiveTab] = useState<
     MobileNavTab | undefined
   >(undefined);
+  const [mobileGitHubOpen, setMobileGitHubOpen] = useState(false);
 
   const bottomPanelRef = useRef<BottomPanelHandle>(null);
 
@@ -112,7 +114,6 @@ function IDELayout() {
 
   useEffect(() => {
     if (isMobile) return;
-    // Track Ctrl+K sequence
     let ctrlKPending = false;
     let ctrlKTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -138,8 +139,6 @@ function IDELayout() {
         setShortcutOverlayVisible(false);
         setZenMode(false);
       }
-
-      // Ctrl+K Z for Zen Mode
       if (ctrl && e.key === "k") {
         e.preventDefault();
         ctrlKPending = true;
@@ -199,16 +198,21 @@ function IDELayout() {
       setMobileSidebarPanel("explorer");
       setMobileSidebarOpen(true);
       setMobileActiveTab("explorer");
-    } else if (tab === "search") {
-      setMobileSidebarPanel("search");
-      setMobileSidebarOpen(true);
-      setMobileActiveTab("search");
+      setMobileGitHubOpen(false);
+    } else if (tab === "github") {
+      setMobileGitHubOpen((v) => !v);
+      setMobileSidebarOpen(false);
+      setMobileActiveTab("github");
     } else if (tab === "settings") {
       setShowSettings(true);
       setMobileActiveTab("settings");
     } else if (tab === "ai") {
       setAiPanelVisible((v) => !v);
       setMobileActiveTab(tab);
+    } else if (tab === "terminal") {
+      setBottomPanelVisible(true);
+      setTimeout(() => bottomPanelRef.current?.setTab("terminal"), 50);
+      setMobileActiveTab("terminal");
     }
   };
 
@@ -280,7 +284,7 @@ function IDELayout() {
           {aiPanelVisible && (
             <AIAssistantPanel
               onClose={() => setAiPanelVisible(false)}
-              width={Math.min(280, window.innerWidth * 0.75)}
+              width={Math.min(300, window.innerWidth * 0.8)}
             />
           )}
         </div>
@@ -295,6 +299,55 @@ function IDELayout() {
           onOpenCloud={cmdOpenCloud}
           cloudSyncStatus={cloudSyncStatus}
         />
+
+        {/* GitHub drawer overlay */}
+        {mobileGitHubOpen && (
+          <div
+            className="fixed inset-0 z-40"
+            style={{ background: "rgba(0,0,0,0.5)" }}
+            onClick={() => {
+              setMobileGitHubOpen(false);
+              setMobileActiveTab(undefined);
+            }}
+            onKeyDown={(e) => e.key === "Escape" && setMobileGitHubOpen(false)}
+          >
+            <div
+              className="absolute top-0 right-0 h-full overflow-y-auto"
+              style={{
+                width: Math.min(320, window.innerWidth * 0.85),
+                background: "var(--bg-sidebar)",
+                borderLeft: "1px solid var(--border)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              <div
+                className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)]"
+                style={{ background: "var(--bg-activity)" }}
+              >
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  GitHub
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileGitHubOpen(false);
+                    setMobileActiveTab(undefined);
+                  }}
+                  className="p-1 rounded hover:bg-[var(--hover-item)] transition-colors"
+                  data-ocid="github.mobile.close_button"
+                >
+                  <X size={14} style={{ color: "var(--text-muted)" }} />
+                </button>
+              </div>
+              <GitHubPanel />
+            </div>
+          </div>
+        )}
+
         <MobileSidebar
           isOpen={mobileSidebarOpen}
           onClose={() => {
@@ -355,7 +408,6 @@ function IDELayout() {
           style={{ height: "100vh" }}
         >
           <SplitEditor />
-          {/* Floating exit pill */}
           <button
             type="button"
             onClick={() => setZenMode(false)}
