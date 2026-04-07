@@ -1,0 +1,109 @@
+type UserRole = 
+ variant {
+   admin;
+   guest;
+   user;
+ };
+type UserProfile = 
+ record {
+   avatarColor: text;
+   bio: text;
+   displayName: text;
+   preferredLanguage: text;
+ };
+type UserPresence = 
+ record {
+   avatarColor: text;
+   displayName: text;
+   lastHeartbeat: int;
+   "principal": principal;
+ };
+type SessionResult = 
+ variant {
+   err: text;
+   ok: Session;
+ };
+type Session = 
+ record {
+   createdAt: int;
+   id: text;
+   participants: vec principal;
+ };
+type ProjectMetadata = 
+ record {
+   lastOpened: int;
+   projectDescription: text;
+   projectName: text;
+ };
+type CollabEventKind = 
+ variant {
+   join;
+   leave;
+ };
+type CollabEvent = 
+ record {
+   kind: CollabEventKind;
+   "principal": principal;
+   sessionId: text;
+   timestamp: int;
+ };
+type CodeSnippet = 
+ record {
+   code: text;
+   description: text;
+   language: text;
+   name: text;
+   tags: vec text;
+ };
+type CodeFile = 
+ record {
+   content: text;
+   language: text;
+   lastModified: int;
+   name: text;
+   path: text;
+ };
+type Bookmark = 
+ record {
+   annotation: text;
+   filePath: text;
+   lineNumber: int;
+   timestamp: int;
+ };
+service : {
+  _initializeAccessControl: () -> ();
+  addBookmark: (bookmark: Bookmark) -> ();
+  addCodeSnippet: (snippet: CodeSnippet) -> ();
+  addToSessionHistory: (filePath: text) -> ();
+  assignCallerUserRole: (user: principal, role: UserRole) -> ();
+  clearSessionHistory: () -> ();
+  deleteBookmark: (timestamp: int) -> ();
+  deleteFile: (path: text) -> ();
+  deleteProject: (name: text) -> ();
+  deleteSnippet: (name: text) -> ();
+  getAllBookmarks: () -> (vec Bookmark) query;
+  getAllFiles: () -> (vec CodeFile) query;
+  getAllProjects: () -> (vec ProjectMetadata) query;
+  getAllSnippets: () -> (vec CodeSnippet) query;
+  getCallerUserProfile: () -> (opt UserProfile) query;
+  getCallerUserRole: () -> (UserRole) query;
+  getCodeSnippet: (name: text) -> (opt CodeSnippet) query;
+  getEditorSettings: () -> (opt text) query;
+  getFile: (path: text) -> (opt CodeFile) query;
+  getOnlineUsers: (sessionId: text) -> (vec UserPresence) query;
+  getProject: (name: text) -> (opt ProjectMetadata) query;
+  getScratchPad: () -> (opt text) query;
+  getSessionEvents: (sessionId: text, limit: nat) -> (vec CollabEvent) query;
+  getSessionHistory: () -> (vec text) query;
+  getUserProfile: (user: principal) -> (opt UserProfile) query;
+  isCallerAdmin: () -> (bool) query;
+  joinSession: (sessionId: text) -> (SessionResult);
+  leaveSession: (sessionId: text) -> (bool);
+  saveCallerUserProfile: (profile: UserProfile) -> ();
+  saveEditorSettings: (settings: text) -> ();
+  saveFile: (file: CodeFile) -> ();
+  saveProject: (project: ProjectMetadata) -> ();
+  saveScratchPad: ("text": text) -> ();
+  saveUserProfile: (profile: UserProfile) -> ();
+  updatePresenceHeartbeat: (sessionId: text) -> (bool);
+}

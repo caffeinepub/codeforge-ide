@@ -7,12 +7,30 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
+export interface CodeSnippet {
+    code: string;
+    name: string;
+    tags: Array<string>;
+    description: string;
+    language: string;
+}
 export interface CodeFile {
     content: string;
     name: string;
     path: string;
     lastModified: bigint;
     language: string;
+}
+export interface UserPresence {
+    principal: Principal;
+    displayName: string;
+    avatarColor: string;
+    lastHeartbeat: bigint;
+}
+export interface Session {
+    id: string;
+    participants: Array<Principal>;
+    createdAt: bigint;
 }
 export interface Bookmark {
     filePath: string;
@@ -25,18 +43,28 @@ export interface ProjectMetadata {
     projectDescription: string;
     lastOpened: bigint;
 }
+export interface CollabEvent {
+    principal: Principal;
+    kind: CollabEventKind;
+    timestamp: bigint;
+    sessionId: string;
+}
 export interface UserProfile {
     bio: string;
     preferredLanguage: string;
     displayName: string;
     avatarColor: string;
 }
-export interface CodeSnippet {
-    code: string;
-    name: string;
-    tags: Array<string>;
-    description: string;
-    language: string;
+export type SessionResult = {
+    __kind__: "ok";
+    ok: Session;
+} | {
+    __kind__: "err";
+    err: string;
+};
+export enum CollabEventKind {
+    join = "join",
+    leave = "leave"
 }
 export enum UserRole {
     admin = "admin",
@@ -62,15 +90,20 @@ export interface backendInterface {
     getCodeSnippet(name: string): Promise<CodeSnippet | null>;
     getEditorSettings(): Promise<string | null>;
     getFile(path: string): Promise<CodeFile | null>;
+    getOnlineUsers(sessionId: string): Promise<Array<UserPresence>>;
     getProject(name: string): Promise<ProjectMetadata | null>;
     getScratchPad(): Promise<string | null>;
+    getSessionEvents(sessionId: string, limit: bigint): Promise<Array<CollabEvent>>;
     getSessionHistory(): Promise<Array<string>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
+    joinSession(sessionId: string): Promise<SessionResult>;
+    leaveSession(sessionId: string): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveEditorSettings(settings: string): Promise<void>;
     saveFile(file: CodeFile): Promise<void>;
     saveProject(project: ProjectMetadata): Promise<void>;
     saveScratchPad(text: string): Promise<void>;
     saveUserProfile(profile: UserProfile): Promise<void>;
+    updatePresenceHeartbeat(sessionId: string): Promise<boolean>;
 }

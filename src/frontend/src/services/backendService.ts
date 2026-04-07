@@ -211,6 +211,69 @@ export async function deleteBookmark(
   }
 }
 
+// ─── Collaboration ─────────────────────────────────────────────────────────
+
+export async function joinCollabSession(
+  actor: Actor,
+  sessionId: string,
+): Promise<import("../backend.d.ts").SessionResult | null> {
+  if (!actor) return null;
+  try {
+    return await actor.joinSession(sessionId);
+  } catch {
+    return null;
+  }
+}
+
+export async function leaveCollabSession(
+  actor: Actor,
+  sessionId: string,
+): Promise<boolean> {
+  if (!actor) return false;
+  try {
+    return await actor.leaveSession(sessionId);
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchOnlineUsers(
+  actor: Actor,
+  sessionId: string,
+): Promise<import("../backend.d.ts").UserPresence[]> {
+  if (!actor) return [];
+  try {
+    return await actor.getOnlineUsers(sessionId);
+  } catch {
+    return [];
+  }
+}
+
+export async function sendPresenceHeartbeat(
+  actor: Actor,
+  sessionId: string,
+): Promise<boolean> {
+  if (!actor) return false;
+  try {
+    return await actor.updatePresenceHeartbeat(sessionId);
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchSessionEvents(
+  actor: Actor,
+  sessionId: string,
+  limit: bigint,
+): Promise<import("../backend.d.ts").CollabEvent[]> {
+  if (!actor) return [];
+  try {
+    return await actor.getSessionEvents(sessionId, limit);
+  } catch {
+    return [];
+  }
+}
+
 // ─── Session History ────────────────────────────────────────────────────────
 
 export async function fetchSessionHistory(actor: Actor): Promise<string[]> {

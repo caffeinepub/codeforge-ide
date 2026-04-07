@@ -30,10 +30,31 @@ export interface CodeSnippet {
   'description' : string,
   'language' : string,
 }
+export interface CollabEvent {
+  'principal' : Principal,
+  'kind' : CollabEventKind,
+  'timestamp' : bigint,
+  'sessionId' : string,
+}
+export type CollabEventKind = { 'join' : null } |
+  { 'leave' : null };
 export interface ProjectMetadata {
   'projectName' : string,
   'projectDescription' : string,
   'lastOpened' : bigint,
+}
+export interface Session {
+  'id' : string,
+  'participants' : Array<Principal>,
+  'createdAt' : bigint,
+}
+export type SessionResult = { 'ok' : Session } |
+  { 'err' : string };
+export interface UserPresence {
+  'principal' : Principal,
+  'displayName' : string,
+  'avatarColor' : string,
+  'lastHeartbeat' : bigint,
 }
 export interface UserProfile {
   'bio' : string,
@@ -44,34 +65,8 @@ export interface UserProfile {
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
-export interface _CaffeineStorageCreateCertificateResult {
-  'method' : string,
-  'blob_hash' : string,
-}
-export interface _CaffeineStorageRefillInformation {
-  'proposed_top_up_amount' : [] | [bigint],
-}
-export interface _CaffeineStorageRefillResult {
-  'success' : [] | [boolean],
-  'topped_up_amount' : [] | [bigint],
-}
 export interface _SERVICE {
-  '_caffeineStorageBlobIsLive' : ActorMethod<[Uint8Array], boolean>,
-  '_caffeineStorageBlobsToDelete' : ActorMethod<[], Array<Uint8Array>>,
-  '_caffeineStorageConfirmBlobDeletion' : ActorMethod<
-    [Array<Uint8Array>],
-    undefined
-  >,
-  '_caffeineStorageCreateCertificate' : ActorMethod<
-    [string],
-    _CaffeineStorageCreateCertificateResult
-  >,
-  '_caffeineStorageRefillCashier' : ActorMethod<
-    [[] | [_CaffeineStorageRefillInformation]],
-    _CaffeineStorageRefillResult
-  >,
-  '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
-  '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  '_initializeAccessControl' : ActorMethod<[], undefined>,
   'addBookmark' : ActorMethod<[Bookmark], undefined>,
   'addCodeSnippet' : ActorMethod<[CodeSnippet], undefined>,
   'addToSessionHistory' : ActorMethod<[string], undefined>,
@@ -90,17 +85,22 @@ export interface _SERVICE {
   'getCodeSnippet' : ActorMethod<[string], [] | [CodeSnippet]>,
   'getEditorSettings' : ActorMethod<[], [] | [string]>,
   'getFile' : ActorMethod<[string], [] | [CodeFile]>,
+  'getOnlineUsers' : ActorMethod<[string], Array<UserPresence>>,
   'getProject' : ActorMethod<[string], [] | [ProjectMetadata]>,
   'getScratchPad' : ActorMethod<[], [] | [string]>,
+  'getSessionEvents' : ActorMethod<[string, bigint], Array<CollabEvent>>,
   'getSessionHistory' : ActorMethod<[], Array<string>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
+  'joinSession' : ActorMethod<[string], SessionResult>,
+  'leaveSession' : ActorMethod<[string], boolean>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'saveEditorSettings' : ActorMethod<[string], undefined>,
   'saveFile' : ActorMethod<[CodeFile], undefined>,
   'saveProject' : ActorMethod<[ProjectMetadata], undefined>,
   'saveScratchPad' : ActorMethod<[string], undefined>,
   'saveUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'updatePresenceHeartbeat' : ActorMethod<[string], boolean>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

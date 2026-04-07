@@ -1,0 +1,104 @@
+// Version: 1.0.0
+type Bookmark__624217893 =
+  {annotation : Text; filePath : Text; lineNumber : Int; timestamp : Int};
+type CodeFile__252681325 =
+  {
+    content : Text;
+    language : Text;
+    lastModified : Int;
+    name : Text;
+    path : Text
+  };
+type CodeSnippet__390226804 =
+  {
+    code : Text;
+    description : Text;
+    language : Text;
+    name : Text;
+    tags : [Text]
+  };
+type CollabEventKind__547654433 = {#join; #leave};
+type CollabEvent__639233771 =
+  {
+    kind : CollabEventKind__547654433;
+    principal : Principal;
+    sessionId : Text;
+    timestamp : Int
+  };
+type Data__791452850<K, V> =
+  {var count : Nat__490723111; kvs : [var ?(K, V)]};
+type Internal__8484328<K, V> =
+  {children : [var ?Node__46230540<K, V>]; data : Data__791452850<K, V>};
+type Leaf__809889148<K, V> = {data : Data__791452850<K, V>};
+type List__415060402<T> = List__790383201<T>;
+type List__790383201<T> =
+  {
+    var blockIndex : Nat__490723111;
+    var blocks : [var [var ?T]];
+    var elementIndex : Nat__490723111
+  };
+type Map__158565046<K, V> = Map__297112838<K, V>;
+type Map__297112838<K, V> =
+  {var root : Node__46230540<K, V>; var size : Nat__490723111};
+type Map__605269027<K, V> = Map__158565046<K, V>;
+type Nat__490723111 = Nat__920180692;
+type Nat__920180692 = Nat;
+type Node__46230540<K, V> =
+  {#internal : Internal__8484328<K, V>; #leaf : Leaf__809889148<K, V>};
+type ProjectMetadata__6902801 =
+  {lastOpened : Int; projectDescription : Text; projectName : Text};
+type Session__107932720 =
+  {createdAt : Int; id : Text; participants : [Principal]};
+type UserData__498200022 =
+  {
+    bookmarks : List__415060402<Bookmark__624217893>;
+    editorSettings : ?Text;
+    files : Map__605269027<Text, CodeFile__252681325>;
+    profile : ?UserProfile__491224006;
+    projects : Map__605269027<Text, ProjectMetadata__6902801>;
+    scratchPad : ?Text;
+    sessionHistory : List__415060402<Text>;
+    snippets : Map__605269027<Text, CodeSnippet__390226804>
+  };
+type UserPresence__922051455 =
+  {
+    avatarColor : Text;
+    displayName : Text;
+    lastHeartbeat : Int;
+    principal : Principal
+  };
+type UserProfile__491224006 =
+  {
+    avatarColor : Text;
+    bio : Text;
+    displayName : Text;
+    preferredLanguage : Text
+  };
+type UserRole__1054455867 = {#admin; #guest; #user};
+actor {
+  stable accessControlState :
+    {
+      var adminAssigned : Bool;
+      userRoles : Map__605269027<Principal, UserRole__1054455867>
+    };
+  stable activeSessions :
+    {
+      var root : Node__46230540<Text, Session__107932720>;
+      var size : Nat__490723111
+    };
+  stable sessionEvents :
+    {
+      var root : Node__46230540<Text, List__415060402<CollabEvent__639233771>>;
+      var size : Nat__490723111
+    };
+  stable userData :
+    {
+      var root : Node__46230540<Principal, UserData__498200022>;
+      var size : Nat__490723111
+    };
+  stable userPresence :
+    {
+      var root : Node__46230540<Text, UserPresence__922051455>;
+      var size : Nat__490723111
+    }
+};

@@ -9,10 +9,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  AlertCircle,
   Check,
   ClipboardCopy,
   Disc,
   Globe,
+  Loader2,
   LogOut,
   Mail,
   MessageSquare,
@@ -24,145 +26,161 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-
-type UserStatus = {
-  name: string;
-  color: string;
-  initial: string;
-  file: string;
-  cursorLine: number;
-};
-
-const MOCK_USERS: UserStatus[] = [
-  {
-    name: "Aryan Dev",
-    color: "#61afef",
-    initial: "A",
-    file: "App.tsx",
-    cursorLine: 42,
-  },
-  {
-    name: "Priya Codes",
-    color: "#c678dd",
-    initial: "P",
-    file: "Sidebar.tsx",
-    cursorLine: 87,
-  },
-  {
-    name: "Max Builder",
-    color: "#e5c07b",
-    initial: "M",
-    file: "index.css",
-    cursorLine: 13,
-  },
-  {
-    name: "Sara Tech",
-    color: "#98c379",
-    initial: "S",
-    file: "App.tsx",
-    cursorLine: 201,
-  },
-];
-
-type FeedEvent = {
-  id: string;
-  user: string;
-  action: string;
-  time: string;
-  color: string;
-};
+import type { CollabEvent, UserPresence } from "../backend.d.ts";
+import { CollabEventKind } from "../backend.js";
+import { useActor } from "../hooks/useActor";
+import {
+  fetchOnlineUsers,
+  fetchSessionEvents,
+  joinCollabSession,
+  leaveCollabSession,
+  sendPresenceHeartbeat,
+} from "../services/backendService";
+import { useCollaborationStore } from "../stores/collaborationStore";
 
 function generateSessionId() {
   return `cvd-${Math.random().toString(36).slice(2, 6)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
-function now() {
-  const d = new Date();
+function formatTimestamp(ts: bigint): string {
+  const d = new Date(Number(ts / BigInt(1_000_000)));
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}:${d.getSeconds().toString().padStart(2, "0")}`;
 }
 
+function shortPrincipal(p: { toString(): string }): string {
+  const s = p.toString();
+  return s.length > 12 ? `${s.slice(0, 5)}…${s.slice(-4)}` : s;
+}
+
+function eventLabel(ev: CollabEvent): string {
+  return ev.kind === CollabEventKind.join
+    ? "joined the session"
+    : "left the session";
+}
+
 export const CollaborationPanel: React.FC = () => {
-  const [sessionActive, setSessionActive] = useState(false);
-  const [sessionId, setSessionId] = useState("");
+  const { actor } = useActor();
+  const {
+    sessionId,
+    isActive,
+    onlineUsers,
+    feed,
+    isLoading,
+    error,
+    startSession,
+    endSession: storeEndSession,
+    setOnlineUsers,
+    addFeedEvent,
+    setLoading,
+    setError,
+  } = useCollaborationStore();
+
   const [pairMode, setPairMode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState<UserStatus[]>([]);
-  const [feed, setFeed] = useState<FeedEvent[]>([]);
-  const [cursorPositions, setCursorPositions] = useState<
-    Record<string, number>
-  >({});
-  const feedRef = useRef<HTMLDivElement>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const seenEvents = useRef<Set<string>>(new Set());
+  const actorRef = useRef(actor);
+  const sessionIdRef = useRef(sessionId);
+  actorRef.current = actor;
+  sessionIdRef.current = sessionId;
 
-  const pushFeed = useCallback(
-    (user: string, action: string, color: string) => {
-      setFeed((prev) => [
-        {
-          id: `ev_${Date.now()}_${Math.random()}`,
-          user,
-          action,
-          time: now(),
-          color,
-        },
-        ...prev.slice(0, 9),
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    if (heartbeatRef.current) {
+      clearInterval(heartbeatRef.current);
+      heartbeatRef.current = null;
+    }
+  }, []);
+
+  const pollSession = useCallback(
+    async (sid: string) => {
+      if (!actor) return;
+      const [users, events] = await Promise.all([
+        fetchOnlineUsers(actor, sid),
+        fetchSessionEvents(actor, sid, BigInt(20)),
       ]);
+      if (users.length > 0) setOnlineUsers(users);
+
+      for (const ev of events) {
+        const key = `${ev.sessionId}_${ev.kind}_${ev.principal.toString()}_${ev.timestamp.toString()}`;
+        if (!seenEvents.current.has(key)) {
+          seenEvents.current.add(key);
+          addFeedEvent(ev);
+        }
+      }
     },
-    [],
+    [actor, setOnlineUsers, addFeedEvent],
   );
 
-  const startSession = () => {
+  const handleStartSession = async () => {
+    if (!actor) {
+      setError("Not connected to backend. Please log in.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
     const id = generateSessionId();
-    setSessionId(id);
-    setSessionActive(true);
-    // Simulate users joining with stagger
-    MOCK_USERS.forEach((u, i) => {
-      setTimeout(() => {
-        setOnlineUsers((prev) => [...prev, u]);
-        pushFeed(u.name, "joined the session", u.color);
-      }, i * 900);
-    });
+    const result = await joinCollabSession(actor, id);
+    setLoading(false);
+    if (!result) {
+      setError("Failed to start session. Please try again.");
+      return;
+    }
+    if (result.__kind__ === "err") {
+      setError(result.err);
+      return;
+    }
+    seenEvents.current.clear();
+    startSession(id);
+
+    // Seed online users from session result
+    if (result.ok.participants.length === 0) {
+      // No participants yet — show empty list, poll will fill it
+    }
+
+    pollRef.current = setInterval(() => pollSession(id), 3000);
+    heartbeatRef.current = setInterval(
+      () => sendPresenceHeartbeat(actor, id),
+      15000,
+    );
   };
 
-  const endSession = () => {
-    setSessionActive(false);
-    setSessionId("");
+  const handleEndSession = async () => {
+    stopPolling();
+    if (actor && sessionId) {
+      await leaveCollabSession(actor, sessionId);
+    }
+    storeEndSession();
     setPairMode(false);
-    setOnlineUsers([]);
-    setFeed([]);
-    setCursorPositions({});
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    seenEvents.current.clear();
   };
 
-  // Cursor simulation
+  // Cleanup on unmount
   useEffect(() => {
-    if (!sessionActive) return;
-    intervalRef.current = setInterval(() => {
-      const user = MOCK_USERS[Math.floor(Math.random() * MOCK_USERS.length)];
-      const newLine = Math.floor(Math.random() * 300) + 1;
-      setCursorPositions((prev) => ({ ...prev, [user.name]: newLine }));
-      if (Math.random() > 0.6) {
-        pushFeed(
-          user.name,
-          `editing line ${newLine} in ${user.file}`,
-          user.color,
-        );
-      }
-    }, 3500);
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      stopPolling();
+      const sid = sessionIdRef.current;
+      const act = actorRef.current;
+      if (act && sid) leaveCollabSession(act, sid);
     };
-  }, [sessionActive, pushFeed]);
+  }, [stopPolling]);
 
-  const inviteLink = sessionActive
+  const inviteLink = isActive
     ? `https://codeveda.app/collab/${sessionId}`
     : "Start a session to get an invite link";
 
   const handleCopyLink = () => {
-    if (!sessionActive) return;
+    if (!isActive) return;
     navigator.clipboard.writeText(inviteLink);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   };
+
+  const displayUsers = onlineUsers as UserPresence[];
 
   return (
     <TooltipProvider>
@@ -183,7 +201,7 @@ export const CollaborationPanel: React.FC = () => {
             >
               Live Collaboration
             </span>
-            {sessionActive && (
+            {isActive && (
               <span
                 className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold live-badge"
                 style={{
@@ -196,21 +214,27 @@ export const CollaborationPanel: React.FC = () => {
               </span>
             )}
           </div>
-          {!sessionActive ? (
+          {!isActive ? (
             <Button
               size="sm"
-              onClick={startSession}
+              onClick={handleStartSession}
+              disabled={isLoading}
               className="h-6 text-[10px] px-2 gap-1"
               style={{ background: "var(--accent)", color: "#fff" }}
               data-ocid="collab.primary_button"
             >
-              <Play size={10} /> New Session
+              {isLoading ? (
+                <Loader2 size={10} className="animate-spin" />
+              ) : (
+                <Play size={10} />
+              )}
+              {isLoading ? "Joining…" : "New Session"}
             </Button>
           ) : (
             <Button
               size="sm"
               variant="destructive"
-              onClick={endSession}
+              onClick={handleEndSession}
               className="h-6 text-[10px] px-2 gap-1"
               data-ocid="collab.delete_button"
             >
@@ -221,8 +245,23 @@ export const CollaborationPanel: React.FC = () => {
 
         <ScrollArea className="flex-1">
           <div className="p-3 space-y-3">
+            {/* Error state */}
+            {error && (
+              <div
+                className="flex items-center gap-2 px-2 py-2 rounded-md text-[10px]"
+                style={{
+                  background: "rgba(239,68,68,0.1)",
+                  border: "1px solid rgba(239,68,68,0.25)",
+                  color: "#ef4444",
+                }}
+              >
+                <AlertCircle size={11} className="flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
             {/* Session Card */}
-            {sessionActive ? (
+            {isActive ? (
               <motion.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -293,7 +332,7 @@ export const CollaborationPanel: React.FC = () => {
             )}
 
             {/* Pair Programming Toggle */}
-            {sessionActive && (
+            {isActive && (
               <div
                 className="rounded-lg p-3"
                 style={{
@@ -334,15 +373,7 @@ export const CollaborationPanel: React.FC = () => {
                   </div>
                   <Switch
                     checked={pairMode}
-                    onCheckedChange={(v) => {
-                      setPairMode(v);
-                      if (v && onlineUsers.length > 0)
-                        pushFeed(
-                          "You",
-                          `enabled Pair Mode with ${onlineUsers[0].name}`,
-                          "#c678dd",
-                        );
-                    }}
+                    onCheckedChange={setPairMode}
                     data-ocid="collab.switch"
                   />
                 </div>
@@ -360,70 +391,80 @@ export const CollaborationPanel: React.FC = () => {
             )}
 
             {/* Online Users */}
-            {sessionActive && onlineUsers.length > 0 && (
+            {isActive && (
               <div>
                 <p
                   className="text-[10px] font-semibold uppercase tracking-wider mb-2"
                   style={{ color: "var(--text-muted)" }}
                 >
-                  Online ({onlineUsers.length})
+                  Online ({displayUsers.length})
                 </p>
-                <div className="space-y-1.5">
-                  <AnimatePresence>
-                    {onlineUsers.map((u, i) => (
-                      <motion.div
-                        key={u.name}
-                        initial={{ opacity: 0, x: -12 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.07 }}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded-md"
-                        style={{
-                          background: "rgba(255,255,255,0.03)",
-                          border: "1px solid var(--border)",
-                        }}
-                        data-ocid={`collab.item.${i + 1}`}
-                      >
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                {displayUsers.length === 0 ? (
+                  <p
+                    className="text-[10px]"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Waiting for collaborators to join…
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    <AnimatePresence>
+                      {displayUsers.map((u, i) => (
+                        <motion.div
+                          key={u.principal.toString()}
+                          initial={{ opacity: 0, x: -12 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.07 }}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-md"
                           style={{
-                            background: `${u.color}33`,
-                            border: `1.5px solid ${u.color}`,
-                            color: u.color,
+                            background: "rgba(255,255,255,0.03)",
+                            border: "1px solid var(--border)",
                           }}
+                          data-ocid={`collab.item.${i + 1}`}
                         >
-                          {u.initial}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className="text-[11px] font-medium truncate"
-                            style={{ color: "var(--text-primary)" }}
+                          <div
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                            style={{
+                              background: `${u.avatarColor}33`,
+                              border: `1.5px solid ${u.avatarColor}`,
+                              color: u.avatarColor,
+                            }}
                           >
-                            {u.name}
-                          </p>
-                          <p
-                            className="text-[9px] truncate"
-                            style={{ color: "var(--text-muted)" }}
-                          >
-                            Editing {u.file} · L
-                            {cursorPositions[u.name] ?? u.cursorLine}
-                          </p>
-                        </div>
-                        <span
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{
-                            background: u.color,
-                            boxShadow: `0 0 4px ${u.color}`,
-                          }}
-                        />
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
+                            {(u.displayName || shortPrincipal(u.principal))
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className="text-[11px] font-medium truncate"
+                              style={{ color: "var(--text-primary)" }}
+                            >
+                              {u.displayName || shortPrincipal(u.principal)}
+                            </p>
+                            <p
+                              className="text-[9px] truncate font-mono"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {shortPrincipal(u.principal)}
+                            </p>
+                          </div>
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{
+                              background: u.avatarColor,
+                              boxShadow: `0 0 4px ${u.avatarColor}`,
+                            }}
+                          />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Invite Section */}
-            {sessionActive && (
+            {isActive && (
               <div
                 className="rounded-lg p-3 space-y-2"
                 style={{
@@ -453,7 +494,7 @@ export const CollaborationPanel: React.FC = () => {
                         border: "1px solid var(--border)",
                         color: "var(--text-secondary)",
                       }}
-                      data-ocid={"collab.secondary_button"}
+                      data-ocid="collab.secondary_button"
                     >
                       {opt.icon}
                       {opt.label}
@@ -472,11 +513,11 @@ export const CollaborationPanel: React.FC = () => {
                 >
                   Activity Feed
                 </p>
-                <div className="space-y-1" ref={feedRef}>
+                <div className="space-y-1">
                   <AnimatePresence>
-                    {feed.slice(0, 5).map((ev) => (
+                    {feed.slice(0, 5).map((ev, idx) => (
                       <motion.div
-                        key={ev.id}
+                        key={`${ev.sessionId}_${ev.kind}_${ev.principal.toString()}_${idx}`}
                         initial={{ opacity: 0, x: 8 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0 }}
@@ -485,28 +526,38 @@ export const CollaborationPanel: React.FC = () => {
                       >
                         <span
                           className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
-                          style={{ background: ev.color }}
+                          style={{
+                            background:
+                              ev.kind === CollabEventKind.join
+                                ? "#22c55e"
+                                : "#ef4444",
+                          }}
                         />
                         <div className="flex-1 min-w-0">
                           <span
-                            className="text-[10px] font-medium"
-                            style={{ color: ev.color }}
+                            className="text-[10px] font-medium font-mono"
+                            style={{
+                              color:
+                                ev.kind === CollabEventKind.join
+                                  ? "#22c55e"
+                                  : "#ef4444",
+                            }}
                           >
-                            {ev.user}
+                            {shortPrincipal(ev.principal)}
                           </span>
                           <span
                             className="text-[10px]"
                             style={{ color: "var(--text-muted)" }}
                           >
                             {" "}
-                            {ev.action}
+                            {eventLabel(ev)}
                           </span>
                         </div>
                         <span
                           className="text-[9px] flex-shrink-0"
                           style={{ color: "var(--text-muted)" }}
                         >
-                          {ev.time}
+                          {formatTimestamp(ev.timestamp)}
                         </span>
                       </motion.div>
                     ))}
