@@ -26,6 +26,35 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
+export const PipelineRunStatus = IDL.Variant({
+  'pending' : IDL.Null,
+  'failed' : IDL.Null,
+  'running' : IDL.Null,
+  'passed' : IDL.Null,
+});
+export const PipelineStageStatus = IDL.Variant({
+  'pending' : IDL.Null,
+  'failed' : IDL.Null,
+  'running' : IDL.Null,
+  'passed' : IDL.Null,
+});
+export const PipelineStage = IDL.Record({
+  'status' : PipelineStageStatus,
+  'startedAt' : IDL.Opt(IDL.Int),
+  'duration' : IDL.Opt(IDL.Nat),
+  'logs' : IDL.Text,
+  'name' : IDL.Text,
+});
+export const PipelineRun = IDL.Record({
+  'id' : IDL.Text,
+  'stages' : IDL.Vec(PipelineStage),
+  'status' : PipelineRunStatus,
+  'branch' : IDL.Text,
+  'createdAt' : IDL.Int,
+  'triggeredBy' : IDL.Text,
+  'projectId' : IDL.Text,
+  'commitHash' : IDL.Text,
+});
 export const CodeFile = IDL.Record({
   'content' : IDL.Text,
   'name' : IDL.Text,
@@ -43,6 +72,19 @@ export const UserProfile = IDL.Record({
   'preferredLanguage' : IDL.Text,
   'displayName' : IDL.Text,
   'avatarColor' : IDL.Text,
+});
+export const DeploymentStatus = IDL.Variant({
+  'success' : IDL.Null,
+  'failed' : IDL.Null,
+});
+export const DeploymentRecord = IDL.Record({
+  'id' : IDL.Text,
+  'status' : DeploymentStatus,
+  'deployedAt' : IDL.Int,
+  'version' : IDL.Text,
+  'projectId' : IDL.Text,
+  'environment' : IDL.Text,
+  'pipelineRunId' : IDL.Text,
 });
 export const UserPresence = IDL.Record({
   'principal' : IDL.Principal,
@@ -74,6 +116,12 @@ export const idlService = IDL.Service({
   'addToSessionHistory' : IDL.Func([IDL.Text], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'clearSessionHistory' : IDL.Func([], [], []),
+  'completePipelineRun' : IDL.Func([IDL.Text, PipelineRunStatus], [], []),
+  'createPipelineRun' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [PipelineRun],
+      [],
+    ),
   'deleteBookmark' : IDL.Func([IDL.Int], [], []),
   'deleteFile' : IDL.Func([IDL.Text], [], []),
   'deleteProject' : IDL.Func([IDL.Text], [], []),
@@ -85,9 +133,24 @@ export const idlService = IDL.Service({
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getCodeSnippet' : IDL.Func([IDL.Text], [IDL.Opt(CodeSnippet)], ['query']),
+  'getDeploymentHistory' : IDL.Func(
+      [IDL.Text, IDL.Nat],
+      [IDL.Vec(DeploymentRecord)],
+      ['query'],
+    ),
   'getEditorSettings' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
   'getFile' : IDL.Func([IDL.Text], [IDL.Opt(CodeFile)], ['query']),
   'getOnlineUsers' : IDL.Func([IDL.Text], [IDL.Vec(UserPresence)], ['query']),
+  'getPipelineRunDetail' : IDL.Func(
+      [IDL.Text],
+      [IDL.Opt(PipelineRun)],
+      ['query'],
+    ),
+  'getPipelineRuns' : IDL.Func(
+      [IDL.Text, IDL.Nat],
+      [IDL.Vec(PipelineRun)],
+      ['query'],
+    ),
   'getProject' : IDL.Func([IDL.Text], [IDL.Opt(ProjectMetadata)], ['query']),
   'getScratchPad' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
   'getSessionEvents' : IDL.Func(
@@ -104,12 +167,22 @@ export const idlService = IDL.Service({
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'joinSession' : IDL.Func([IDL.Text], [SessionResult], []),
   'leaveSession' : IDL.Func([IDL.Text], [IDL.Bool], []),
+  'recordDeployment' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [DeploymentRecord],
+      [],
+    ),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'saveEditorSettings' : IDL.Func([IDL.Text], [], []),
   'saveFile' : IDL.Func([CodeFile], [], []),
   'saveProject' : IDL.Func([ProjectMetadata], [], []),
   'saveScratchPad' : IDL.Func([IDL.Text], [], []),
   'saveUserProfile' : IDL.Func([UserProfile], [], []),
+  'updatePipelineStage' : IDL.Func(
+      [IDL.Text, IDL.Text, PipelineStageStatus, IDL.Opt(IDL.Nat), IDL.Text],
+      [],
+      [],
+    ),
   'updatePresenceHeartbeat' : IDL.Func([IDL.Text], [IDL.Bool], []),
 });
 
@@ -134,6 +207,35 @@ export const idlFactory = ({ IDL }) => {
     'user' : IDL.Null,
     'guest' : IDL.Null,
   });
+  const PipelineRunStatus = IDL.Variant({
+    'pending' : IDL.Null,
+    'failed' : IDL.Null,
+    'running' : IDL.Null,
+    'passed' : IDL.Null,
+  });
+  const PipelineStageStatus = IDL.Variant({
+    'pending' : IDL.Null,
+    'failed' : IDL.Null,
+    'running' : IDL.Null,
+    'passed' : IDL.Null,
+  });
+  const PipelineStage = IDL.Record({
+    'status' : PipelineStageStatus,
+    'startedAt' : IDL.Opt(IDL.Int),
+    'duration' : IDL.Opt(IDL.Nat),
+    'logs' : IDL.Text,
+    'name' : IDL.Text,
+  });
+  const PipelineRun = IDL.Record({
+    'id' : IDL.Text,
+    'stages' : IDL.Vec(PipelineStage),
+    'status' : PipelineRunStatus,
+    'branch' : IDL.Text,
+    'createdAt' : IDL.Int,
+    'triggeredBy' : IDL.Text,
+    'projectId' : IDL.Text,
+    'commitHash' : IDL.Text,
+  });
   const CodeFile = IDL.Record({
     'content' : IDL.Text,
     'name' : IDL.Text,
@@ -151,6 +253,19 @@ export const idlFactory = ({ IDL }) => {
     'preferredLanguage' : IDL.Text,
     'displayName' : IDL.Text,
     'avatarColor' : IDL.Text,
+  });
+  const DeploymentStatus = IDL.Variant({
+    'success' : IDL.Null,
+    'failed' : IDL.Null,
+  });
+  const DeploymentRecord = IDL.Record({
+    'id' : IDL.Text,
+    'status' : DeploymentStatus,
+    'deployedAt' : IDL.Int,
+    'version' : IDL.Text,
+    'projectId' : IDL.Text,
+    'environment' : IDL.Text,
+    'pipelineRunId' : IDL.Text,
   });
   const UserPresence = IDL.Record({
     'principal' : IDL.Principal,
@@ -182,6 +297,12 @@ export const idlFactory = ({ IDL }) => {
     'addToSessionHistory' : IDL.Func([IDL.Text], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'clearSessionHistory' : IDL.Func([], [], []),
+    'completePipelineRun' : IDL.Func([IDL.Text, PipelineRunStatus], [], []),
+    'createPipelineRun' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [PipelineRun],
+        [],
+      ),
     'deleteBookmark' : IDL.Func([IDL.Int], [], []),
     'deleteFile' : IDL.Func([IDL.Text], [], []),
     'deleteProject' : IDL.Func([IDL.Text], [], []),
@@ -193,9 +314,24 @@ export const idlFactory = ({ IDL }) => {
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getCodeSnippet' : IDL.Func([IDL.Text], [IDL.Opt(CodeSnippet)], ['query']),
+    'getDeploymentHistory' : IDL.Func(
+        [IDL.Text, IDL.Nat],
+        [IDL.Vec(DeploymentRecord)],
+        ['query'],
+      ),
     'getEditorSettings' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
     'getFile' : IDL.Func([IDL.Text], [IDL.Opt(CodeFile)], ['query']),
     'getOnlineUsers' : IDL.Func([IDL.Text], [IDL.Vec(UserPresence)], ['query']),
+    'getPipelineRunDetail' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(PipelineRun)],
+        ['query'],
+      ),
+    'getPipelineRuns' : IDL.Func(
+        [IDL.Text, IDL.Nat],
+        [IDL.Vec(PipelineRun)],
+        ['query'],
+      ),
     'getProject' : IDL.Func([IDL.Text], [IDL.Opt(ProjectMetadata)], ['query']),
     'getScratchPad' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
     'getSessionEvents' : IDL.Func(
@@ -212,12 +348,22 @@ export const idlFactory = ({ IDL }) => {
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'joinSession' : IDL.Func([IDL.Text], [SessionResult], []),
     'leaveSession' : IDL.Func([IDL.Text], [IDL.Bool], []),
+    'recordDeployment' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [DeploymentRecord],
+        [],
+      ),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'saveEditorSettings' : IDL.Func([IDL.Text], [], []),
     'saveFile' : IDL.Func([CodeFile], [], []),
     'saveProject' : IDL.Func([ProjectMetadata], [], []),
     'saveScratchPad' : IDL.Func([IDL.Text], [], []),
     'saveUserProfile' : IDL.Func([UserProfile], [], []),
+    'updatePipelineStage' : IDL.Func(
+        [IDL.Text, IDL.Text, PipelineStageStatus, IDL.Opt(IDL.Nat), IDL.Text],
+        [],
+        [],
+      ),
     'updatePresenceHeartbeat' : IDL.Func([IDL.Text], [IDL.Bool], []),
   });
 };

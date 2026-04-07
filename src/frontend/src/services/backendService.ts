@@ -1,3 +1,4 @@
+import { PipelineRunStatus } from "../backend";
 /**
  * Backend service wrapper — thin, safe helpers around the actor.
  * All calls are try/catch guarded and return null/empty on failure.
@@ -6,11 +7,16 @@ import type {
   Bookmark,
   CodeFile,
   CodeSnippet,
+  DeploymentRecord,
+  PipelineRun,
   UserProfile,
   backendInterface,
-} from "../backend.d.ts";
+} from "../backend.d";
 
 type Actor = backendInterface | null;
+
+// PipelineStageStatus shares the same string values as PipelineRunStatus
+export type PipelineStageStatus = "pending" | "failed" | "running" | "passed";
 
 // ─── User Profile ──────────────────────────────────────────────────────────
 
@@ -216,7 +222,7 @@ export async function deleteBookmark(
 export async function joinCollabSession(
   actor: Actor,
   sessionId: string,
-): Promise<import("../backend.d.ts").SessionResult | null> {
+): Promise<import("../backend.d").SessionResult | null> {
   if (!actor) return null;
   try {
     return await actor.joinSession(sessionId);
@@ -240,7 +246,7 @@ export async function leaveCollabSession(
 export async function fetchOnlineUsers(
   actor: Actor,
   sessionId: string,
-): Promise<import("../backend.d.ts").UserPresence[]> {
+): Promise<import("../backend.d").UserPresence[]> {
   if (!actor) return [];
   try {
     return await actor.getOnlineUsers(sessionId);
@@ -265,7 +271,7 @@ export async function fetchSessionEvents(
   actor: Actor,
   sessionId: string,
   limit: bigint,
-): Promise<import("../backend.d.ts").CollabEvent[]> {
+): Promise<import("../backend.d").CollabEvent[]> {
   if (!actor) return [];
   try {
     return await actor.getSessionEvents(sessionId, limit);
@@ -304,5 +310,128 @@ export async function clearSessionHistory(actor: Actor): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+// ─── CI/CD Pipeline ────────────────────────────────────────────────────────
+
+export async function createPipelineRun(
+  actor: Actor,
+  projectId: string,
+  commitHash: string,
+  branch: string,
+  triggeredBy: string,
+): Promise<PipelineRun | null> {
+  if (!actor) return null;
+  try {
+    return await actor.createPipelineRun(
+      projectId,
+      commitHash,
+      branch,
+      triggeredBy,
+    );
+  } catch {
+    return null;
+  }
+}
+
+export async function updatePipelineStage(
+  actor: Actor,
+  runId: string,
+  stageName: string,
+  status: PipelineStageStatus,
+  duration: bigint | null,
+  logs: string,
+): Promise<void> {
+  if (!actor) return;
+  try {
+    // PipelineStageStatus shares the same runtime string values as PipelineRunStatus
+    type StageStatusParam = Parameters<
+      backendInterface["updatePipelineStage"]
+    >[2];
+    await actor.updatePipelineStage(
+      runId,
+      stageName,
+      status as unknown as StageStatusParam,
+      duration,
+      logs,
+    );
+  } catch {
+    // best-effort
+  }
+}
+
+export async function completePipelineRun(
+  actor: Actor,
+  runId: string,
+  overallStatus: "passed" | "failed",
+): Promise<void> {
+  if (!actor) return;
+  try {
+    const status =
+      overallStatus === "passed"
+        ? PipelineRunStatus.passed
+        : PipelineRunStatus.failed;
+    await actor.completePipelineRun(runId, status);
+  } catch {
+    // best-effort
+  }
+}
+
+export async function recordDeployment(
+  actor: Actor,
+  projectId: string,
+  environment: string,
+  pipelineRunId: string,
+  version: string,
+): Promise<DeploymentRecord | null> {
+  if (!actor) return null;
+  try {
+    return await actor.recordDeployment(
+      projectId,
+      environment,
+      pipelineRunId,
+      version,
+    );
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchPipelineRuns(
+  actor: Actor,
+  projectId: string,
+  limit: number,
+): Promise<PipelineRun[]> {
+  if (!actor) return [];
+  try {
+    return await actor.getPipelineRuns(projectId, BigInt(limit));
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchDeploymentHistory(
+  actor: Actor,
+  projectId: string,
+  limit: number,
+): Promise<DeploymentRecord[]> {
+  if (!actor) return [];
+  try {
+    return await actor.getDeploymentHistory(projectId, BigInt(limit));
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchPipelineRunDetail(
+  actor: Actor,
+  runId: string,
+): Promise<PipelineRun | null> {
+  if (!actor) return null;
+  try {
+    return await actor.getPipelineRunDetail(runId);
+  } catch {
+    return null;
   }
 }

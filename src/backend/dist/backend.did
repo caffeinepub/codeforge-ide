@@ -35,6 +35,54 @@ type ProjectMetadata =
    projectDescription: text;
    projectName: text;
  };
+type PipelineStageStatus = 
+ variant {
+   failed;
+   passed;
+   pending;
+   running;
+ };
+type PipelineStage = 
+ record {
+   duration: opt nat;
+   logs: text;
+   name: text;
+   startedAt: opt int;
+   status: PipelineStageStatus;
+ };
+type PipelineRunStatus = 
+ variant {
+   failed;
+   passed;
+   pending;
+   running;
+ };
+type PipelineRun = 
+ record {
+   branch: text;
+   commitHash: text;
+   createdAt: int;
+   id: text;
+   projectId: text;
+   stages: vec PipelineStage;
+   status: PipelineRunStatus;
+   triggeredBy: text;
+ };
+type DeploymentStatus = 
+ variant {
+   failed;
+   success;
+ };
+type DeploymentRecord = 
+ record {
+   deployedAt: int;
+   environment: text;
+   id: text;
+   pipelineRunId: text;
+   projectId: text;
+   status: DeploymentStatus;
+   version: text;
+ };
 type CollabEventKind = 
  variant {
    join;
@@ -77,6 +125,9 @@ service : {
   addToSessionHistory: (filePath: text) -> ();
   assignCallerUserRole: (user: principal, role: UserRole) -> ();
   clearSessionHistory: () -> ();
+  completePipelineRun: (runId: text, overallStatus: PipelineRunStatus) -> ();
+  createPipelineRun: (projectId: text, commitHash: text, branch: text,
+   triggeredBy: text) -> (PipelineRun);
   deleteBookmark: (timestamp: int) -> ();
   deleteFile: (path: text) -> ();
   deleteProject: (name: text) -> ();
@@ -88,9 +139,13 @@ service : {
   getCallerUserProfile: () -> (opt UserProfile) query;
   getCallerUserRole: () -> (UserRole) query;
   getCodeSnippet: (name: text) -> (opt CodeSnippet) query;
+  getDeploymentHistory: (projectId: text, limit: nat) ->
+   (vec DeploymentRecord) query;
   getEditorSettings: () -> (opt text) query;
   getFile: (path: text) -> (opt CodeFile) query;
   getOnlineUsers: (sessionId: text) -> (vec UserPresence) query;
+  getPipelineRunDetail: (runId: text) -> (opt PipelineRun) query;
+  getPipelineRuns: (projectId: text, limit: nat) -> (vec PipelineRun) query;
   getProject: (name: text) -> (opt ProjectMetadata) query;
   getScratchPad: () -> (opt text) query;
   getSessionEvents: (sessionId: text, limit: nat) -> (vec CollabEvent) query;
@@ -99,11 +154,15 @@ service : {
   isCallerAdmin: () -> (bool) query;
   joinSession: (sessionId: text) -> (SessionResult);
   leaveSession: (sessionId: text) -> (bool);
+  recordDeployment: (projectId: text, environment: text, pipelineRunId: 
+   text, version: text) -> (DeploymentRecord);
   saveCallerUserProfile: (profile: UserProfile) -> ();
   saveEditorSettings: (settings: text) -> ();
   saveFile: (file: CodeFile) -> ();
   saveProject: (project: ProjectMetadata) -> ();
   saveScratchPad: ("text": text) -> ();
   saveUserProfile: (profile: UserProfile) -> ();
+  updatePipelineStage: (runId: text, stageName: text, status:
+   PipelineStageStatus, duration: opt nat, logs: text) -> ();
   updatePresenceHeartbeat: (sessionId: text) -> (bool);
 }

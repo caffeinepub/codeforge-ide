@@ -96,23 +96,11 @@ export interface CodeSnippet {
     description: string;
     language: string;
 }
-export interface CodeFile {
-    content: string;
-    name: string;
-    path: string;
-    lastModified: bigint;
-    language: string;
-}
 export interface UserPresence {
     principal: Principal;
     displayName: string;
     avatarColor: string;
     lastHeartbeat: bigint;
-}
-export interface Session {
-    id: string;
-    participants: Array<Principal>;
-    createdAt: bigint;
 }
 export interface Bookmark {
     filePath: string;
@@ -131,6 +119,44 @@ export interface CollabEvent {
     timestamp: bigint;
     sessionId: string;
 }
+export interface CodeFile {
+    content: string;
+    name: string;
+    path: string;
+    lastModified: bigint;
+    language: string;
+}
+export interface Session {
+    id: string;
+    participants: Array<Principal>;
+    createdAt: bigint;
+}
+export interface PipelineStage {
+    status: PipelineStageStatus;
+    startedAt?: bigint;
+    duration?: bigint;
+    logs: string;
+    name: string;
+}
+export interface PipelineRun {
+    id: string;
+    stages: Array<PipelineStage>;
+    status: PipelineRunStatus;
+    branch: string;
+    createdAt: bigint;
+    triggeredBy: string;
+    projectId: string;
+    commitHash: string;
+}
+export interface DeploymentRecord {
+    id: string;
+    status: DeploymentStatus;
+    deployedAt: bigint;
+    version: string;
+    projectId: string;
+    environment: string;
+    pipelineRunId: string;
+}
 export interface UserProfile {
     bio: string;
     preferredLanguage: string;
@@ -148,6 +174,16 @@ export enum CollabEventKind {
     join = "join",
     leave = "leave"
 }
+export enum DeploymentStatus {
+    success = "success",
+    failed = "failed"
+}
+export enum PipelineRunStatus {
+    pending = "pending",
+    failed = "failed",
+    running = "running",
+    passed = "passed"
+}
 export enum UserRole {
     admin = "admin",
     user = "user",
@@ -160,6 +196,8 @@ export interface backendInterface {
     addToSessionHistory(filePath: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     clearSessionHistory(): Promise<void>;
+    completePipelineRun(runId: string, overallStatus: PipelineRunStatus): Promise<void>;
+    createPipelineRun(projectId: string, commitHash: string, branch: string, triggeredBy: string): Promise<PipelineRun>;
     deleteBookmark(timestamp: bigint): Promise<void>;
     deleteFile(path: string): Promise<void>;
     deleteProject(name: string): Promise<void>;
@@ -171,9 +209,12 @@ export interface backendInterface {
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCodeSnippet(name: string): Promise<CodeSnippet | null>;
+    getDeploymentHistory(projectId: string, limit: bigint): Promise<Array<DeploymentRecord>>;
     getEditorSettings(): Promise<string | null>;
     getFile(path: string): Promise<CodeFile | null>;
     getOnlineUsers(sessionId: string): Promise<Array<UserPresence>>;
+    getPipelineRunDetail(runId: string): Promise<PipelineRun | null>;
+    getPipelineRuns(projectId: string, limit: bigint): Promise<Array<PipelineRun>>;
     getProject(name: string): Promise<ProjectMetadata | null>;
     getScratchPad(): Promise<string | null>;
     getSessionEvents(sessionId: string, limit: bigint): Promise<Array<CollabEvent>>;
@@ -182,15 +223,17 @@ export interface backendInterface {
     isCallerAdmin(): Promise<boolean>;
     joinSession(sessionId: string): Promise<SessionResult>;
     leaveSession(sessionId: string): Promise<boolean>;
+    recordDeployment(projectId: string, environment: string, pipelineRunId: string, version: string): Promise<DeploymentRecord>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveEditorSettings(settings: string): Promise<void>;
     saveFile(file: CodeFile): Promise<void>;
     saveProject(project: ProjectMetadata): Promise<void>;
     saveScratchPad(text: string): Promise<void>;
     saveUserProfile(profile: UserProfile): Promise<void>;
+    updatePipelineStage(runId: string, stageName: string, status: PipelineStageStatus, duration: bigint | null, logs: string): Promise<void>;
     updatePresenceHeartbeat(sessionId: string): Promise<boolean>;
 }
-import type { CodeFile as _CodeFile, CodeSnippet as _CodeSnippet, CollabEvent as _CollabEvent, CollabEventKind as _CollabEventKind, ProjectMetadata as _ProjectMetadata, Session as _Session, SessionResult as _SessionResult, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
+import type { CodeFile as _CodeFile, CodeSnippet as _CodeSnippet, CollabEvent as _CollabEvent, CollabEventKind as _CollabEventKind, DeploymentRecord as _DeploymentRecord, DeploymentStatus as _DeploymentStatus, PipelineRun as _PipelineRun, PipelineRunStatus as _PipelineRunStatus, PipelineStage as _PipelineStage, PipelineStageStatus as _PipelineStageStatus, ProjectMetadata as _ProjectMetadata, Session as _Session, SessionResult as _SessionResult, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _initializeAccessControl(): Promise<void> {
@@ -275,6 +318,34 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.clearSessionHistory();
             return result;
+        }
+    }
+    async completePipelineRun(arg0: string, arg1: PipelineRunStatus): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.completePipelineRun(arg0, to_candid_PipelineRunStatus_n3(this._uploadFile, this._downloadFile, arg1));
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.completePipelineRun(arg0, to_candid_PipelineRunStatus_n3(this._uploadFile, this._downloadFile, arg1));
+            return result;
+        }
+    }
+    async createPipelineRun(arg0: string, arg1: string, arg2: string, arg3: string): Promise<PipelineRun> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.createPipelineRun(arg0, arg1, arg2, arg3);
+                return from_candid_PipelineRun_n5(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.createPipelineRun(arg0, arg1, arg2, arg3);
+            return from_candid_PipelineRun_n5(this._uploadFile, this._downloadFile, result);
         }
     }
     async deleteBookmark(arg0: bigint): Promise<void> {
@@ -393,70 +464,84 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getCallerUserProfile();
-                return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCallerUserProfile();
-            return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
         }
     }
     async getCallerUserRole(): Promise<UserRole> {
         if (this.processError) {
             try {
                 const result = await this.actor.getCallerUserRole();
-                return from_candid_UserRole_n4(this._uploadFile, this._downloadFile, result);
+                return from_candid_UserRole_n16(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCallerUserRole();
-            return from_candid_UserRole_n4(this._uploadFile, this._downloadFile, result);
+            return from_candid_UserRole_n16(this._uploadFile, this._downloadFile, result);
         }
     }
     async getCodeSnippet(arg0: string): Promise<CodeSnippet | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getCodeSnippet(arg0);
-                return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n18(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCodeSnippet(arg0);
-            return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n18(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getDeploymentHistory(arg0: string, arg1: bigint): Promise<Array<DeploymentRecord>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getDeploymentHistory(arg0, arg1);
+                return from_candid_vec_n19(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getDeploymentHistory(arg0, arg1);
+            return from_candid_vec_n19(this._uploadFile, this._downloadFile, result);
         }
     }
     async getEditorSettings(): Promise<string | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getEditorSettings();
-                return from_candid_opt_n7(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n24(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getEditorSettings();
-            return from_candid_opt_n7(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n24(this._uploadFile, this._downloadFile, result);
         }
     }
     async getFile(arg0: string): Promise<CodeFile | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getFile(arg0);
-                return from_candid_opt_n8(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n25(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getFile(arg0);
-            return from_candid_opt_n8(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n25(this._uploadFile, this._downloadFile, result);
         }
     }
     async getOnlineUsers(arg0: string): Promise<Array<UserPresence>> {
@@ -473,46 +558,74 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getPipelineRunDetail(arg0: string): Promise<PipelineRun | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPipelineRunDetail(arg0);
+                return from_candid_opt_n26(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getPipelineRunDetail(arg0);
+            return from_candid_opt_n26(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getPipelineRuns(arg0: string, arg1: bigint): Promise<Array<PipelineRun>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPipelineRuns(arg0, arg1);
+                return from_candid_vec_n27(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getPipelineRuns(arg0, arg1);
+            return from_candid_vec_n27(this._uploadFile, this._downloadFile, result);
+        }
+    }
     async getProject(arg0: string): Promise<ProjectMetadata | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getProject(arg0);
-                return from_candid_opt_n9(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n28(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getProject(arg0);
-            return from_candid_opt_n9(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n28(this._uploadFile, this._downloadFile, result);
         }
     }
     async getScratchPad(): Promise<string | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getScratchPad();
-                return from_candid_opt_n7(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n24(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getScratchPad();
-            return from_candid_opt_n7(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n24(this._uploadFile, this._downloadFile, result);
         }
     }
     async getSessionEvents(arg0: string, arg1: bigint): Promise<Array<CollabEvent>> {
         if (this.processError) {
             try {
                 const result = await this.actor.getSessionEvents(arg0, arg1);
-                return from_candid_vec_n10(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n29(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getSessionEvents(arg0, arg1);
-            return from_candid_vec_n10(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n29(this._uploadFile, this._downloadFile, result);
         }
     }
     async getSessionHistory(): Promise<Array<string>> {
@@ -533,14 +646,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getUserProfile(arg0);
-                return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getUserProfile(arg0);
-            return from_candid_opt_n3(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n15(this._uploadFile, this._downloadFile, result);
         }
     }
     async isCallerAdmin(): Promise<boolean> {
@@ -561,14 +674,14 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.joinSession(arg0);
-                return from_candid_SessionResult_n15(this._uploadFile, this._downloadFile, result);
+                return from_candid_SessionResult_n34(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.joinSession(arg0);
-            return from_candid_SessionResult_n15(this._uploadFile, this._downloadFile, result);
+            return from_candid_SessionResult_n34(this._uploadFile, this._downloadFile, result);
         }
     }
     async leaveSession(arg0: string): Promise<boolean> {
@@ -583,6 +696,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.leaveSession(arg0);
             return result;
+        }
+    }
+    async recordDeployment(arg0: string, arg1: string, arg2: string, arg3: string): Promise<DeploymentRecord> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.recordDeployment(arg0, arg1, arg2, arg3);
+                return from_candid_DeploymentRecord_n20(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.recordDeployment(arg0, arg1, arg2, arg3);
+            return from_candid_DeploymentRecord_n20(this._uploadFile, this._downloadFile, result);
         }
     }
     async saveCallerUserProfile(arg0: UserProfile): Promise<void> {
@@ -669,6 +796,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async updatePipelineStage(arg0: string, arg1: string, arg2: PipelineStageStatus, arg3: bigint | null, arg4: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updatePipelineStage(arg0, arg1, to_candid_PipelineStageStatus_n36(this._uploadFile, this._downloadFile, arg2), to_candid_opt_n37(this._uploadFile, this._downloadFile, arg3), arg4);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updatePipelineStage(arg0, arg1, to_candid_PipelineStageStatus_n36(this._uploadFile, this._downloadFile, arg2), to_candid_opt_n37(this._uploadFile, this._downloadFile, arg3), arg4);
+            return result;
+        }
+    }
     async updatePresenceHeartbeat(arg0: string): Promise<boolean> {
         if (this.processError) {
             try {
@@ -684,34 +825,88 @@ export class Backend implements backendInterface {
         }
     }
 }
-function from_candid_CollabEventKind_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CollabEventKind): CollabEventKind {
-    return from_candid_variant_n14(_uploadFile, _downloadFile, value);
+function from_candid_CollabEventKind_n32(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CollabEventKind): CollabEventKind {
+    return from_candid_variant_n33(_uploadFile, _downloadFile, value);
 }
-function from_candid_CollabEvent_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CollabEvent): CollabEvent {
-    return from_candid_record_n12(_uploadFile, _downloadFile, value);
+function from_candid_CollabEvent_n30(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _CollabEvent): CollabEvent {
+    return from_candid_record_n31(_uploadFile, _downloadFile, value);
 }
-function from_candid_SessionResult_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _SessionResult): SessionResult {
-    return from_candid_variant_n16(_uploadFile, _downloadFile, value);
+function from_candid_DeploymentRecord_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _DeploymentRecord): DeploymentRecord {
+    return from_candid_record_n21(_uploadFile, _downloadFile, value);
 }
-function from_candid_UserRole_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
-    return from_candid_variant_n5(_uploadFile, _downloadFile, value);
+function from_candid_DeploymentStatus_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _DeploymentStatus): DeploymentStatus {
+    return from_candid_variant_n23(_uploadFile, _downloadFile, value);
 }
-function from_candid_opt_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
+function from_candid_PipelineRunStatus_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _PipelineRunStatus): PipelineRunStatus {
+    return from_candid_variant_n11(_uploadFile, _downloadFile, value);
+}
+function from_candid_PipelineRun_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _PipelineRun): PipelineRun {
+    return from_candid_record_n6(_uploadFile, _downloadFile, value);
+}
+function from_candid_PipelineStageStatus_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _PipelineStageStatus): PipelineStageStatus {
+    return from_candid_variant_n11(_uploadFile, _downloadFile, value);
+}
+function from_candid_PipelineStage_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _PipelineStage): PipelineStage {
+    return from_candid_record_n9(_uploadFile, _downloadFile, value);
+}
+function from_candid_SessionResult_n34(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _SessionResult): SessionResult {
+    return from_candid_variant_n35(_uploadFile, _downloadFile, value);
+}
+function from_candid_UserRole_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
+    return from_candid_variant_n17(_uploadFile, _downloadFile, value);
+}
+function from_candid_opt_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [bigint]): bigint | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_CodeSnippet]): CodeSnippet | null {
+function from_candid_opt_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [bigint]): bigint | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
+function from_candid_opt_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_CodeFile]): CodeFile | null {
+function from_candid_opt_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_CodeSnippet]): CodeSnippet | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_ProjectMetadata]): ProjectMetadata | null {
+function from_candid_opt_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_record_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_opt_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_CodeFile]): CodeFile | null {
+    return value.length === 0 ? null : value[0];
+}
+function from_candid_opt_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_PipelineRun]): PipelineRun | null {
+    return value.length === 0 ? null : from_candid_PipelineRun_n5(_uploadFile, _downloadFile, value[0]);
+}
+function from_candid_opt_n28(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_ProjectMetadata]): ProjectMetadata | null {
+    return value.length === 0 ? null : value[0];
+}
+function from_candid_record_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    id: string;
+    status: _DeploymentStatus;
+    deployedAt: bigint;
+    version: string;
+    projectId: string;
+    environment: string;
+    pipelineRunId: string;
+}): {
+    id: string;
+    status: DeploymentStatus;
+    deployedAt: bigint;
+    version: string;
+    projectId: string;
+    environment: string;
+    pipelineRunId: string;
+} {
+    return {
+        id: value.id,
+        status: from_candid_DeploymentStatus_n22(_uploadFile, _downloadFile, value.status),
+        deployedAt: value.deployedAt,
+        version: value.version,
+        projectId: value.projectId,
+        environment: value.environment,
+        pipelineRunId: value.pipelineRunId
+    };
+}
+function from_candid_record_n31(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     principal: Principal;
     kind: _CollabEventKind;
     timestamp: bigint;
@@ -724,19 +919,97 @@ function from_candid_record_n12(_uploadFile: (file: ExternalBlob) => Promise<Uin
 } {
     return {
         principal: value.principal,
-        kind: from_candid_CollabEventKind_n13(_uploadFile, _downloadFile, value.kind),
+        kind: from_candid_CollabEventKind_n32(_uploadFile, _downloadFile, value.kind),
         timestamp: value.timestamp,
         sessionId: value.sessionId
     };
 }
-function from_candid_variant_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    id: string;
+    stages: Array<_PipelineStage>;
+    status: _PipelineRunStatus;
+    branch: string;
+    createdAt: bigint;
+    triggeredBy: string;
+    projectId: string;
+    commitHash: string;
+}): {
+    id: string;
+    stages: Array<PipelineStage>;
+    status: PipelineRunStatus;
+    branch: string;
+    createdAt: bigint;
+    triggeredBy: string;
+    projectId: string;
+    commitHash: string;
+} {
+    return {
+        id: value.id,
+        stages: from_candid_vec_n7(_uploadFile, _downloadFile, value.stages),
+        status: from_candid_PipelineRunStatus_n14(_uploadFile, _downloadFile, value.status),
+        branch: value.branch,
+        createdAt: value.createdAt,
+        triggeredBy: value.triggeredBy,
+        projectId: value.projectId,
+        commitHash: value.commitHash
+    };
+}
+function from_candid_record_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    status: _PipelineStageStatus;
+    startedAt: [] | [bigint];
+    duration: [] | [bigint];
+    logs: string;
+    name: string;
+}): {
+    status: PipelineStageStatus;
+    startedAt?: bigint;
+    duration?: bigint;
+    logs: string;
+    name: string;
+} {
+    return {
+        status: from_candid_PipelineStageStatus_n10(_uploadFile, _downloadFile, value.status),
+        startedAt: record_opt_to_undefined(from_candid_opt_n12(_uploadFile, _downloadFile, value.startedAt)),
+        duration: record_opt_to_undefined(from_candid_opt_n13(_uploadFile, _downloadFile, value.duration)),
+        logs: value.logs,
+        name: value.name
+    };
+}
+function from_candid_variant_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    pending: null;
+} | {
+    failed: null;
+} | {
+    running: null;
+} | {
+    passed: null;
+}): PipelineRunStatus {
+    return "pending" in value ? PipelineRunStatus.pending : "failed" in value ? PipelineRunStatus.failed : "running" in value ? PipelineRunStatus.running : "passed" in value ? PipelineRunStatus.passed : value;
+}
+function from_candid_variant_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    admin: null;
+} | {
+    user: null;
+} | {
+    guest: null;
+}): UserRole {
+    return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
+}
+function from_candid_variant_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    success: null;
+} | {
+    failed: null;
+}): DeploymentStatus {
+    return "success" in value ? DeploymentStatus.success : "failed" in value ? DeploymentStatus.failed : value;
+}
+function from_candid_variant_n33(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     join: null;
 } | {
     leave: null;
 }): CollabEventKind {
     return "join" in value ? CollabEventKind.join : "leave" in value ? CollabEventKind.leave : value;
 }
-function from_candid_variant_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n35(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     ok: _Session;
 } | {
     err: string;
@@ -755,20 +1028,29 @@ function from_candid_variant_n16(_uploadFile: (file: ExternalBlob) => Promise<Ui
         err: value.err
     } : value;
 }
-function from_candid_variant_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    admin: null;
-} | {
-    user: null;
-} | {
-    guest: null;
-}): UserRole {
-    return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
+function from_candid_vec_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_DeploymentRecord>): Array<DeploymentRecord> {
+    return value.map((x)=>from_candid_DeploymentRecord_n20(_uploadFile, _downloadFile, x));
 }
-function from_candid_vec_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_CollabEvent>): Array<CollabEvent> {
-    return value.map((x)=>from_candid_CollabEvent_n11(_uploadFile, _downloadFile, x));
+function from_candid_vec_n27(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_PipelineRun>): Array<PipelineRun> {
+    return value.map((x)=>from_candid_PipelineRun_n5(_uploadFile, _downloadFile, x));
+}
+function from_candid_vec_n29(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_CollabEvent>): Array<CollabEvent> {
+    return value.map((x)=>from_candid_CollabEvent_n30(_uploadFile, _downloadFile, x));
+}
+function from_candid_vec_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_PipelineStage>): Array<PipelineStage> {
+    return value.map((x)=>from_candid_PipelineStage_n8(_uploadFile, _downloadFile, x));
+}
+function to_candid_PipelineRunStatus_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: PipelineRunStatus): _PipelineRunStatus {
+    return to_candid_variant_n4(_uploadFile, _downloadFile, value);
+}
+function to_candid_PipelineStageStatus_n36(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: PipelineStageStatus): _PipelineStageStatus {
+    return to_candid_variant_n4(_uploadFile, _downloadFile, value);
 }
 function to_candid_UserRole_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): _UserRole {
     return to_candid_variant_n2(_uploadFile, _downloadFile, value);
+}
+function to_candid_opt_n37(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: bigint | null): [] | [bigint] {
+    return value === null ? candid_none() : candid_some(value);
 }
 function to_candid_variant_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): {
     admin: null;
@@ -783,6 +1065,25 @@ function to_candid_variant_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8
         user: null
     } : value == UserRole.guest ? {
         guest: null
+    } : value;
+}
+function to_candid_variant_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: PipelineRunStatus): {
+    pending: null;
+} | {
+    failed: null;
+} | {
+    running: null;
+} | {
+    passed: null;
+} {
+    return value == PipelineRunStatus.pending ? {
+        pending: null
+    } : value == PipelineRunStatus.failed ? {
+        failed: null
+    } : value == PipelineRunStatus.running ? {
+        running: null
+    } : value == PipelineRunStatus.passed ? {
+        passed: null
     } : value;
 }
 export interface CreateActorOptions {

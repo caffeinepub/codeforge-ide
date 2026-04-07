@@ -3,6 +3,7 @@ import Principal "mo:core/Principal";
 import List "mo:core/List";
 import Time "mo:core/Time";
 import Runtime "mo:core/Runtime";
+import Int "mo:core/Int";
 import AccessControl "mo:caffeineai-authorization/access-control";
 import MixinAuthorization "mo:caffeineai-authorization/MixinAuthorization";
 
@@ -541,5 +542,211 @@ actor {
         };
       };
     };
+  };
+
+  // ── CI/CD types ────────────────────────────────────────────────────────────
+
+  public type PipelineStageStatus = {
+    #pending;
+    #running;
+    #passed;
+    #failed;
+  };
+
+  public type PipelineStage = {
+    name : Text;
+    status : PipelineStageStatus;
+    startedAt : ?Int;
+    duration : ?Nat;
+    logs : Text;
+  };
+
+  public type PipelineRunStatus = {
+    #pending;
+    #running;
+    #passed;
+    #failed;
+  };
+
+  public type PipelineRun = {
+    id : Text;
+    projectId : Text;
+    commitHash : Text;
+    branch : Text;
+    triggeredBy : Text;
+    createdAt : Int;
+    status : PipelineRunStatus;
+    stages : [PipelineStage];
+  };
+
+  public type DeploymentStatus = {
+    #success;
+    #failed;
+  };
+
+  public type DeploymentRecord = {
+    id : Text;
+    projectId : Text;
+    environment : Text;
+    version : Text;
+    deployedAt : Int;
+    status : DeploymentStatus;
+    pipelineRunId : Text;
+  };
+
+  // ── CI/CD state ────────────────────────────────────────────────────────────
+
+  let pipelineRuns = Map.empty<Text, PipelineRun>();
+  let deploymentHistory = Map.empty<Text, List.List<DeploymentRecord>>();
+
+  // ── CI/CD counter for id generation ────────────────────────────────────────
+
+  var cicdCounter : Nat = 0;
+
+  func nextCicdId(prefix : Text) : Text {
+    cicdCounter += 1;
+    prefix # "-" # cicdCounter.toText() # "-" # (Time.now().toNat() % 1_000_000).toText();
+  };
+
+  // ── CI/CD functions ────────────────────────────────────────────────────────
+
+  public shared ({ caller }) func createPipelineRun(
+    projectId : Text,
+    commitHash : Text,
+    branch : Text,
+    triggeredBy : Text,
+  ) : async PipelineRun {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can create pipeline runs");
+    };
+    let id = nextCicdId("run");
+    let defaultStages : [PipelineStage] = [
+      { name = "lint"; status = #pending; startedAt = null; duration = null; logs = "" },
+      { name = "test"; status = #pending; startedAt = null; duration = null; logs = "" },
+      { name = "build"; status = #pending; startedAt = null; duration = null; logs = "" },
+      { name = "deploy"; status = #pending; startedAt = null; duration = null; logs = "" },
+    ];
+    let run : PipelineRun = {
+      id;
+      projectId;
+      commitHash;
+      branch;
+      triggeredBy;
+      createdAt = Time.now();
+      status = #pending;
+      stages = defaultStages;
+    };
+    pipelineRuns.add(id, run);
+    run;
+  };
+
+  public shared ({ caller }) func updatePipelineStage(
+    runId : Text,
+    stageName : Text,
+    status : PipelineStageStatus,
+    duration : ?Nat,
+    logs : Text,
+  ) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can update pipeline stages");
+    };
+    switch (pipelineRuns.get(runId)) {
+      case null { Runtime.trap("Pipeline run not found: " # runId) };
+      case (?run) {
+        let updatedStages = run.stages.map(func(stage : PipelineStage) : PipelineStage {
+          if (stage.name == stageName) {
+            let startedAt : ?Int = switch (status) {
+              case (#running) { ?Time.now() };
+              case (_) { stage.startedAt };
+            };
+            { stage with status; startedAt; duration; logs };
+          } else {
+            stage;
+          };
+        });
+        pipelineRuns.add(runId, { run with stages = updatedStages });
+      };
+    };
+  };
+
+  public shared ({ caller }) func completePipelineRun(
+    runId : Text,
+    overallStatus : PipelineRunStatus,
+  ) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can complete pipeline runs");
+    };
+    switch (pipelineRuns.get(runId)) {
+      case null { Runtime.trap("Pipeline run not found: " # runId) };
+      case (?run) {
+        pipelineRuns.add(runId, { run with status = overallStatus });
+      };
+    };
+  };
+
+  public shared ({ caller }) func recordDeployment(
+    projectId : Text,
+    environment : Text,
+    pipelineRunId : Text,
+    version : Text,
+  ) : async DeploymentRecord {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can record deployments");
+    };
+    let id = nextCicdId("deploy");
+    let record : DeploymentRecord = {
+      id;
+      projectId;
+      environment;
+      version;
+      deployedAt = Time.now();
+      status = #success;
+      pipelineRunId;
+    };
+    let history = switch (deploymentHistory.get(projectId)) {
+      case (?existing) { existing };
+      case null {
+        let newList = List.empty<DeploymentRecord>();
+        deploymentHistory.add(projectId, newList);
+        newList;
+      };
+    };
+    history.add(record);
+    record;
+  };
+
+  public query func getPipelineRuns(projectId : Text, limit : Nat) : async [PipelineRun] {
+    let matching = pipelineRuns.values().filter(func(run : PipelineRun) : Bool {
+      run.projectId == projectId;
+    }).toArray();
+    let sorted = matching.sort(func(a : PipelineRun, b : PipelineRun) : { #less; #equal; #greater } {
+      Int.compare(b.createdAt, a.createdAt);
+    });
+    if (limit == 0 or sorted.size() <= limit) {
+      sorted;
+    } else {
+      sorted.sliceToArray(0, limit);
+    };
+  };
+
+  public query func getDeploymentHistory(projectId : Text, limit : Nat) : async [DeploymentRecord] {
+    switch (deploymentHistory.get(projectId)) {
+      case null { [] };
+      case (?records) {
+        let arr = records.toArray();
+        let sorted = arr.sort(func(a : DeploymentRecord, b : DeploymentRecord) : { #less; #equal; #greater } {
+          Int.compare(b.deployedAt, a.deployedAt);
+        });
+        if (limit == 0 or sorted.size() <= limit) {
+          sorted;
+        } else {
+          sorted.sliceToArray(0, limit);
+        };
+      };
+    };
+  };
+
+  public query func getPipelineRunDetail(runId : Text) : async ?PipelineRun {
+    pipelineRuns.get(runId);
   };
 };

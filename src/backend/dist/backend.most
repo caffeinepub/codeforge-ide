@@ -27,6 +27,17 @@ type CollabEvent__639233771 =
   };
 type Data__791452850<K, V> =
   {var count : Nat__490723111; kvs : [var ?(K, V)]};
+type DeploymentRecord__415268246 =
+  {
+    deployedAt : Int;
+    environment : Text;
+    id : Text;
+    pipelineRunId : Text;
+    projectId : Text;
+    status : DeploymentStatus__316531055;
+    version : Text
+  };
+type DeploymentStatus__316531055 = {#failed; #success};
 type Internal__8484328<K, V> =
   {children : [var ?Node__46230540<K, V>]; data : Data__791452850<K, V>};
 type Leaf__809889148<K, V> = {data : Data__791452850<K, V>};
@@ -45,6 +56,27 @@ type Nat__490723111 = Nat__920180692;
 type Nat__920180692 = Nat;
 type Node__46230540<K, V> =
   {#internal : Internal__8484328<K, V>; #leaf : Leaf__809889148<K, V>};
+type PipelineRunStatus__485760116 = {#failed; #passed; #pending; #running};
+type PipelineRun__204651350 =
+  {
+    branch : Text;
+    commitHash : Text;
+    createdAt : Int;
+    id : Text;
+    projectId : Text;
+    stages : [PipelineStage__644919044];
+    status : PipelineRunStatus__485760116;
+    triggeredBy : Text
+  };
+type PipelineStageStatus__894353132 = {#failed; #passed; #pending; #running};
+type PipelineStage__644919044 =
+  {
+    duration : ?Nat;
+    logs : Text;
+    name : Text;
+    startedAt : ?Int;
+    status : PipelineStageStatus__894353132
+  };
 type ProjectMetadata__6902801 =
   {lastOpened : Int; projectDescription : Text; projectName : Text};
 type Session__107932720 =
@@ -84,6 +116,18 @@ actor {
   stable activeSessions :
     {
       var root : Node__46230540<Text, Session__107932720>;
+      var size : Nat__490723111
+    };
+  stable var cicdCounter : Nat;
+  stable deploymentHistory :
+    {
+      var root :
+        Node__46230540<Text, List__415060402<DeploymentRecord__415268246>>;
+      var size : Nat__490723111
+    };
+  stable pipelineRuns :
+    {
+      var root : Node__46230540<Text, PipelineRun__204651350>;
       var size : Nat__490723111
     };
   stable sessionEvents :

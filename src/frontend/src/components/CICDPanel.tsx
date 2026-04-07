@@ -20,7 +20,17 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type React from "react";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { DeploymentRecord, PipelineRun } from "../backend.d";
+import { useActor } from "../hooks/useActor";
+import {
+  completePipelineRun,
+  createPipelineRun,
+  fetchDeploymentHistory,
+  fetchPipelineRuns,
+  recordDeployment,
+  updatePipelineStage,
+} from "../services/backendService";
 
 type StageStatus = "idle" | "running" | "success" | "failed";
 type Env = "development" | "staging" | "production";
@@ -32,15 +42,6 @@ interface Stage {
   status: StageStatus;
   duration: number | null;
   log: string[];
-}
-
-interface HistoryRun {
-  id: string;
-  branch: string;
-  status: "success" | "failed";
-  env: Env;
-  duration: string;
-  time: string;
 }
 
 const INITIAL_STAGES: Stage[] = [
@@ -97,49 +98,6 @@ const INITIAL_STAGES: Stage[] = [
   },
 ];
 
-const HISTORY: HistoryRun[] = [
-  {
-    id: "1",
-    branch: "main",
-    status: "success",
-    env: "production",
-    duration: "4m 12s",
-    time: "10m ago",
-  },
-  {
-    id: "2",
-    branch: "feature/ai-panel",
-    status: "success",
-    env: "staging",
-    duration: "3m 47s",
-    time: "1h ago",
-  },
-  {
-    id: "3",
-    branch: "fix/mobile-layout",
-    status: "failed",
-    env: "development",
-    duration: "1m 8s",
-    time: "3h ago",
-  },
-  {
-    id: "4",
-    branch: "main",
-    status: "success",
-    env: "production",
-    duration: "4m 5s",
-    time: "1d ago",
-  },
-  {
-    id: "5",
-    branch: "feature/vcs-panel",
-    status: "failed",
-    env: "staging",
-    duration: "2m 31s",
-    time: "2d ago",
-  },
-];
-
 const CI_YAML = `name: CodeVeda CI/CD
 on:
   push:
@@ -179,52 +137,142 @@ jobs:
     steps:
       - run: dfx deploy --network ic`;
 
+function randomCommitHash(): string {
+  return Math.random().toString(16).slice(2, 9);
+}
+
+function formatTimeAgo(ts: bigint): string {
+  const ms = Number(ts / 1_000_000n);
+  const diff = Date.now() - ms;
+  if (diff < 60_000) return `${Math.floor(diff / 1000)}s ago`;
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  return `${Math.floor(diff / 86_400_000)}d ago`;
+}
+
+function mapRunStatus(
+  run: PipelineRun,
+): "success" | "failed" | "running" | "pending" {
+  const s = run.status as string;
+  if (s === "passed") return "success";
+  if (s === "failed") return "failed";
+  if (s === "running") return "running";
+  return "pending";
+}
+
 export const CICDPanel: React.FC = () => {
+  const { actor, isFetching } = useActor();
   const [stages, setStages] = useState<Stage[]>(INITIAL_STAGES);
   const [env, setEnv] = useState<Env>("production");
   const [autoOnPush, setAutoOnPush] = useState(true);
   const [running, setRunning] = useState(false);
   const [expandedStage, setExpandedStage] = useState<string | null>(null);
   const [configExpanded, setConfigExpanded] = useState(false);
+  const [pipelineRuns, setPipelineRuns] = useState<PipelineRun[]>([]);
+  const [deploymentHistory, setDeploymentHistory] = useState<
+    DeploymentRecord[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const actorRef = useRef(actor);
+  actorRef.current = actor;
 
-  const runPipeline = () => {
+  const refreshData = useCallback(async () => {
+    const a = actorRef.current;
+    const [runs, deploys] = await Promise.all([
+      fetchPipelineRuns(a, "default", 50),
+      fetchDeploymentHistory(a, "default", 20),
+    ]);
+    setPipelineRuns(runs);
+    setDeploymentHistory(deploys);
+  }, []);
+
+  useEffect(() => {
+    if (isFetching) return;
+    setLoading(true);
+    refreshData().finally(() => setLoading(false));
+  }, [isFetching, refreshData]);
+
+  const runPipeline = async () => {
     if (running) return;
     setRunning(true);
     setStages(
       INITIAL_STAGES.map((s) => ({ ...s, status: "idle", duration: null })),
     );
 
-    INITIAL_STAGES.forEach((stage, i) => {
-      // Mark running
-      setTimeout(() => {
+    try {
+      const commitHash = randomCommitHash();
+      const currentBranch = "main";
+      const a = actorRef.current;
+
+      // Create run in canister
+      const run = await createPipelineRun(
+        a,
+        "default",
+        commitHash,
+        currentBranch,
+        "user",
+      );
+      const runId = run?.id ?? `local-${Date.now()}`;
+
+      let overallFailed = false;
+
+      for (let i = 0; i < INITIAL_STAGES.length; i++) {
+        const stage = INITIAL_STAGES[i];
+
+        const dur = 800 + Math.floor(Math.random() * 500);
+        const failThis = i === 3 && Math.random() < 0.15;
+
+        // Mark running
         setStages((prev) =>
           prev.map((s) =>
             s.id === stage.id ? { ...s, status: "running" } : s,
           ),
         );
-      }, i * 1200);
+        await updatePipelineStage(
+          a,
+          runId,
+          stage.name,
+          "running",
+          null,
+          stage.log.join("\n"),
+        );
 
-      // Mark success (randomize last to sometimes fail for realism)
-      setTimeout(
-        () => {
-          const failLast = i === 3 && Math.random() < 0.15;
-          const dur = 800 + Math.floor(Math.random() * 500);
-          setStages((prev) =>
-            prev.map((s) =>
-              s.id === stage.id
-                ? {
-                    ...s,
-                    status: failLast ? "failed" : "success",
-                    duration: dur,
-                  }
-                : s,
-            ),
-          );
-          if (i === INITIAL_STAGES.length - 1) setRunning(false);
-        },
-        i * 1200 + 1100,
-      );
-    });
+        // Wait for stage duration
+        await new Promise((r) => setTimeout(r, 1500));
+
+        const stageResult = failThis ? "failed" : "success";
+        if (failThis) overallFailed = true;
+
+        setStages((prev) =>
+          prev.map((s) =>
+            s.id === stage.id
+              ? { ...s, status: stageResult, duration: dur }
+              : s,
+          ),
+        );
+        await updatePipelineStage(
+          a,
+          runId,
+          stage.name,
+          failThis ? "failed" : "passed",
+          BigInt(dur),
+          stage.log.join("\n"),
+        );
+
+        // Record deployment on successful deploy stage
+        if (stage.id === "deploy" && !failThis) {
+          await recordDeployment(a, "default", env, runId, "v1.0.0");
+        }
+
+        // Stop pipeline on failure
+        if (failThis) break;
+      }
+
+      await completePipelineRun(a, runId, overallFailed ? "failed" : "passed");
+      await refreshData();
+    } finally {
+      setRunning(false);
+    }
   };
 
   const resetPipeline = () => {
@@ -266,21 +314,28 @@ export const CICDPanel: React.FC = () => {
     }
   };
 
-  const statusBadge = (status: "success" | "failed") => (
-    <Badge
-      className="text-[9px] h-4 px-1.5"
-      style={{
-        background:
-          status === "success"
+  const statusBadge = (
+    status: "success" | "failed" | "running" | "pending",
+  ) => {
+    const isPass = status === "success";
+    const isRun = status === "running";
+    return (
+      <Badge
+        className="text-[9px] h-4 px-1.5"
+        style={{
+          background: isPass
             ? "rgba(34,197,94,0.15)"
-            : "rgba(244,71,71,0.15)",
-        color: status === "success" ? "#22c55e" : "var(--error)",
-        border: `1px solid ${status === "success" ? "rgba(34,197,94,0.35)" : "rgba(244,71,71,0.35)"}`,
-      }}
-    >
-      {status === "success" ? "✔ Pass" : "✘ Fail"}
-    </Badge>
-  );
+            : isRun
+              ? "rgba(0,122,204,0.15)"
+              : "rgba(244,71,71,0.15)",
+          color: isPass ? "#22c55e" : isRun ? "var(--accent)" : "var(--error)",
+          border: `1px solid ${isPass ? "rgba(34,197,94,0.35)" : isRun ? "rgba(0,122,204,0.35)" : "rgba(244,71,71,0.35)"}`,
+        }}
+      >
+        {isPass ? "✔ Pass" : isRun ? "⟳ Run" : "✘ Fail"}
+      </Badge>
+    );
+  };
 
   return (
     <div
@@ -314,7 +369,7 @@ export const CICDPanel: React.FC = () => {
           <Button
             size="sm"
             onClick={runPipeline}
-            disabled={running}
+            disabled={running || isFetching}
             className="h-6 text-[10px] px-2 gap-1"
             style={{
               background: running ? "rgba(0,122,204,0.4)" : "var(--accent)",
@@ -524,7 +579,7 @@ export const CICDPanel: React.FC = () => {
             </AnimatePresence>
           </div>
 
-          {/* Deployment History */}
+          {/* Deployment History — backend-driven */}
           <div>
             <p
               className="text-[10px] font-semibold uppercase tracking-wider mb-2"
@@ -539,53 +594,137 @@ export const CICDPanel: React.FC = () => {
               <div
                 className="grid text-[9px] font-semibold uppercase tracking-wider px-2 py-1.5"
                 style={{
-                  gridTemplateColumns: "1fr 60px 55px 50px 50px",
+                  gridTemplateColumns: "1fr 60px 55px 55px",
                   background: "var(--bg-activity)",
                   color: "var(--text-muted)",
                 }}
               >
-                <span>Branch</span>
+                <span>Environment</span>
                 <span>Status</span>
-                <span>Env</span>
-                <span>Time</span>
+                <span>Version</span>
                 <span>When</span>
               </div>
-              {HISTORY.map((run, i) => (
-                <div
-                  key={run.id}
-                  className="grid items-center px-2 py-1.5 border-t border-[var(--border)] hover:bg-[var(--hover-item)] transition-colors"
-                  style={{ gridTemplateColumns: "1fr 60px 55px 50px 50px" }}
-                  data-ocid={`cicd.item.${i + 1}`}
-                >
-                  <span
-                    className="text-[10px] font-mono truncate"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {run.branch}
-                  </span>
-                  {statusBadge(run.status)}
-                  <span
-                    className="text-[9px] capitalize"
+              {loading ? (
+                <div className="px-2 py-3 text-center">
+                  <Loader2
+                    size={12}
+                    className="animate-spin mx-auto"
                     style={{ color: "var(--text-muted)" }}
-                  >
-                    {run.env.slice(0, 4)}
-                  </span>
-                  <span
-                    className="text-[9px]"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    {run.duration}
-                  </span>
-                  <span
-                    className="text-[9px]"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    {run.time}
-                  </span>
+                  />
                 </div>
-              ))}
+              ) : deploymentHistory.length === 0 ? (
+                <div
+                  className="px-2 py-3 text-center text-[10px]"
+                  style={{ color: "var(--text-muted)" }}
+                  data-ocid="cicd.empty_state"
+                >
+                  No deployments yet. Run the pipeline to deploy.
+                </div>
+              ) : (
+                deploymentHistory.map((dep, i) => {
+                  const depStatus = dep.status as string;
+                  const isSuccess = depStatus === "success";
+                  return (
+                    <div
+                      key={dep.id}
+                      className="grid items-center px-2 py-1.5 border-t border-[var(--border)] hover:bg-[var(--hover-item)] transition-colors"
+                      style={{ gridTemplateColumns: "1fr 60px 55px 55px" }}
+                      data-ocid={`cicd.item.${i + 1}`}
+                    >
+                      <span
+                        className="text-[10px] capitalize truncate"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        {dep.environment}
+                      </span>
+                      <Badge
+                        className="text-[9px] h-4 px-1.5 w-fit"
+                        style={{
+                          background: isSuccess
+                            ? "rgba(34,197,94,0.15)"
+                            : "rgba(244,71,71,0.15)",
+                          color: isSuccess ? "#22c55e" : "var(--error)",
+                          border: `1px solid ${isSuccess ? "rgba(34,197,94,0.35)" : "rgba(244,71,71,0.35)"}`,
+                        }}
+                      >
+                        {isSuccess ? "✔ Pass" : "✘ Fail"}
+                      </Badge>
+                      <span
+                        className="text-[9px] font-mono"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        {dep.version}
+                      </span>
+                      <span
+                        className="text-[9px]"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        {formatTimeAgo(dep.deployedAt)}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
+
+          {/* Recent Pipeline Runs — backend-driven */}
+          {pipelineRuns.length > 0 && (
+            <div>
+              <p
+                className="text-[10px] font-semibold uppercase tracking-wider mb-2"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Recent Runs
+              </p>
+              <div
+                className="rounded-lg overflow-hidden"
+                style={{ border: "1px solid var(--border)" }}
+              >
+                <div
+                  className="grid text-[9px] font-semibold uppercase tracking-wider px-2 py-1.5"
+                  style={{
+                    gridTemplateColumns: "1fr 60px 70px 55px",
+                    background: "var(--bg-activity)",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  <span>Branch</span>
+                  <span>Status</span>
+                  <span>Commit</span>
+                  <span>When</span>
+                </div>
+                {pipelineRuns.slice(0, 10).map((run, i) => (
+                  <div
+                    key={run.id}
+                    className="grid items-center px-2 py-1.5 border-t border-[var(--border)] hover:bg-[var(--hover-item)] transition-colors"
+                    style={{ gridTemplateColumns: "1fr 60px 70px 55px" }}
+                    data-ocid={`cicd.item.${i + 1}`}
+                  >
+                    <span
+                      className="text-[10px] font-mono truncate"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      {run.branch}
+                    </span>
+                    {statusBadge(mapRunStatus(run))}
+                    <span
+                      className="text-[9px] font-mono truncate"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      {run.commitHash.slice(0, 7)}
+                    </span>
+                    <span
+                      className="text-[9px]"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      {formatTimeAgo(run.createdAt)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Pipeline Config */}
           <div

@@ -38,6 +38,42 @@ export interface CollabEvent {
 }
 export type CollabEventKind = { 'join' : null } |
   { 'leave' : null };
+export interface DeploymentRecord {
+  'id' : string,
+  'status' : DeploymentStatus,
+  'deployedAt' : bigint,
+  'version' : string,
+  'projectId' : string,
+  'environment' : string,
+  'pipelineRunId' : string,
+}
+export type DeploymentStatus = { 'success' : null } |
+  { 'failed' : null };
+export interface PipelineRun {
+  'id' : string,
+  'stages' : Array<PipelineStage>,
+  'status' : PipelineRunStatus,
+  'branch' : string,
+  'createdAt' : bigint,
+  'triggeredBy' : string,
+  'projectId' : string,
+  'commitHash' : string,
+}
+export type PipelineRunStatus = { 'pending' : null } |
+  { 'failed' : null } |
+  { 'running' : null } |
+  { 'passed' : null };
+export interface PipelineStage {
+  'status' : PipelineStageStatus,
+  'startedAt' : [] | [bigint],
+  'duration' : [] | [bigint],
+  'logs' : string,
+  'name' : string,
+}
+export type PipelineStageStatus = { 'pending' : null } |
+  { 'failed' : null } |
+  { 'running' : null } |
+  { 'passed' : null };
 export interface ProjectMetadata {
   'projectName' : string,
   'projectDescription' : string,
@@ -72,6 +108,11 @@ export interface _SERVICE {
   'addToSessionHistory' : ActorMethod<[string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'clearSessionHistory' : ActorMethod<[], undefined>,
+  'completePipelineRun' : ActorMethod<[string, PipelineRunStatus], undefined>,
+  'createPipelineRun' : ActorMethod<
+    [string, string, string, string],
+    PipelineRun
+  >,
   'deleteBookmark' : ActorMethod<[bigint], undefined>,
   'deleteFile' : ActorMethod<[string], undefined>,
   'deleteProject' : ActorMethod<[string], undefined>,
@@ -83,9 +124,15 @@ export interface _SERVICE {
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getCodeSnippet' : ActorMethod<[string], [] | [CodeSnippet]>,
+  'getDeploymentHistory' : ActorMethod<
+    [string, bigint],
+    Array<DeploymentRecord>
+  >,
   'getEditorSettings' : ActorMethod<[], [] | [string]>,
   'getFile' : ActorMethod<[string], [] | [CodeFile]>,
   'getOnlineUsers' : ActorMethod<[string], Array<UserPresence>>,
+  'getPipelineRunDetail' : ActorMethod<[string], [] | [PipelineRun]>,
+  'getPipelineRuns' : ActorMethod<[string, bigint], Array<PipelineRun>>,
   'getProject' : ActorMethod<[string], [] | [ProjectMetadata]>,
   'getScratchPad' : ActorMethod<[], [] | [string]>,
   'getSessionEvents' : ActorMethod<[string, bigint], Array<CollabEvent>>,
@@ -94,12 +141,20 @@ export interface _SERVICE {
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'joinSession' : ActorMethod<[string], SessionResult>,
   'leaveSession' : ActorMethod<[string], boolean>,
+  'recordDeployment' : ActorMethod<
+    [string, string, string, string],
+    DeploymentRecord
+  >,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'saveEditorSettings' : ActorMethod<[string], undefined>,
   'saveFile' : ActorMethod<[CodeFile], undefined>,
   'saveProject' : ActorMethod<[ProjectMetadata], undefined>,
   'saveScratchPad' : ActorMethod<[string], undefined>,
   'saveUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'updatePipelineStage' : ActorMethod<
+    [string, string, PipelineStageStatus, [] | [bigint], string],
+    undefined
+  >,
   'updatePresenceHeartbeat' : ActorMethod<[string], boolean>,
 }
 export declare const idlService: IDL.ServiceClass;
